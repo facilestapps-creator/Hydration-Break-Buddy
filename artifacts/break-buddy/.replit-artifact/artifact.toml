@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Break Buddy"
+version = "1.0.0"
+id = "artifacts/break-buddy"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18319
+
+[services.development]
+run = "pnpm --filter @workspace/break-buddy run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/break-buddy", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/break-buddy/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18319"
+BASE_PATH = "/"
