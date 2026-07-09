@@ -1,10 +1,13 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Mascot } from "./Mascot";
 import { Users, User as UserIcon } from "lucide-react";
 
 export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") => void }) {
+  const { t } = useTranslation();
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -13,14 +16,14 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") 
       <div className="animate-float mb-8 z-10">
         <Mascot state="celebrate" />
       </div>
-      <h1 className="text-4xl font-black mb-3 text-foreground text-center z-10">Welcome to Break Buddy!</h1>
+      <h1 className="text-4xl font-black mb-3 text-foreground text-center z-10">{t("mode.welcome")}</h1>
       <p className="text-muted-foreground text-lg mb-12 text-center max-w-md z-10 font-medium">
-        Your cheerful desk companion. How would you like to play?
+        {t("mode.subtitle")}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl z-10">
-        <motion.button 
-          whileHover={{ scale: 1.02 }} 
+        <motion.button
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => onSelect("solo")}
           className="w-full h-full bg-white p-8 rounded-[2rem] border-2 border-border shadow-sm flex flex-col items-center text-center gap-4 hover:border-accent hover:shadow-md transition-all cursor-pointer group"
@@ -29,13 +32,13 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") 
             <UserIcon className="w-10 h-10" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-foreground mb-2">Play Solo</h2>
-            <p className="text-muted-foreground font-medium">Track your own breaks, just for you.</p>
+            <h2 className="text-2xl font-black text-foreground mb-2">{t("mode.solo.title")}</h2>
+            <p className="text-muted-foreground font-medium">{t("mode.solo.desc")}</p>
           </div>
         </motion.button>
 
-        <motion.button 
-          whileHover={{ scale: 1.02 }} 
+        <motion.button
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => onSelect("team")}
           className="w-full h-full bg-white p-8 rounded-[2rem] border-2 border-border shadow-sm flex flex-col items-center text-center gap-4 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
@@ -44,8 +47,8 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") 
             <Users className="w-10 h-10" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-foreground mb-2">Join a Team</h2>
-            <p className="text-muted-foreground font-medium">Compete with your office crew for weekly medals.</p>
+            <h2 className="text-2xl font-black text-foreground mb-2">{t("mode.team.title")}</h2>
+            <p className="text-muted-foreground font-medium">{t("mode.team.desc")}</p>
           </div>
         </motion.button>
       </div>
