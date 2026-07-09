@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface TeamInput {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  name: string;
+  userId: number;
 }

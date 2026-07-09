@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Play, Check } from "lucide-react";
+import { Settings, Play, Check, Trophy } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useAudio } from "@/hooks/use-audio";
 import { TimerRing } from "@/components/TimerRing";
@@ -11,7 +11,17 @@ import { Switch } from "@/components/Switch";
 import { BREAK_TYPES, BreakType, YOUTUBE_LINKS } from "@/lib/breaks";
 import { cn } from "@/lib/utils";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetUser, useLogBreak, getGetTeamLeaderboardQueryKey } from "@workspace/api-client-react";
+import { ModeSelection } from "@/components/ModeSelection";
+import { TeamOnboarding } from "@/components/TeamOnboarding";
+import { LeaderboardModal } from "@/components/LeaderboardModal";
+
 export default function Home() {
+  const [mode, setMode] = useLocalStorage<"solo" | "team" | null>("bb-mode", null);
+  const [userId, setUserId] = useLocalStorage<number | null>("bb-userId", null);
+  const [teamId, setTeamId] = useLocalStorage<number | null>("bb-teamId", null);
+
   // Settings
   const [workInterval, setWorkInterval] = useLocalStorage("bb-interval", 25);
   const [enabledBreaks, setEnabledBreaks] = useLocalStorage<BreakType[]>("bb-breaks", ["hydration", "walk", "eye"]);
@@ -27,9 +37,16 @@ export default function Home() {
   const [currentBreakIndex, setCurrentBreakIndex] = useState(0);
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [youtubeIndex, setYoutubeIndex] = useState(0);
   
   const { playNotificationSound } = useAudio();
+  const queryClient = useQueryClient();
+  const logBreak = useLogBreak();
+  
+  const { data: user } = useGetUser(userId!, { 
+    query: { enabled: !!userId && mode === "team", queryKey: ["user", userId] } 
+  });
   
   // Reset stats on new day
   useEffect(() => {
@@ -47,10 +64,8 @@ export default function Home() {
     }
   }, [workInterval, isRunning, isBreakModalOpen]);
 
-  // Check if browser supports Notifications
+  // Notifications logic
   const notificationsSupported = typeof window !== "undefined" && "Notification" in window;
-
-  // Request notification permission if enabled
   useEffect(() => {
     if (!notificationsSupported) return;
     if (notifications && Notification.permission !== "granted") {
@@ -115,6 +130,17 @@ export default function Home() {
       setYoutubeIndex(prev => (prev + 1) % YOUTUBE_LINKS.length);
     }
     
+    // Server-side tracking for Team mode
+    if (mode === "team" && userId) {
+       logBreak.mutate({ data: { userId, breakType: activeBreakType } }, {
+         onSuccess: () => {
+           if (teamId) {
+             queryClient.invalidateQueries({ queryKey: getGetTeamLeaderboardQueryKey(teamId) });
+           }
+         }
+       });
+    }
+
     nextBreak();
   };
 
@@ -140,24 +166,56 @@ export default function Home() {
     });
   };
 
+  // View routing
+  if (!mode) {
+    return <ModeSelection onSelect={setMode} />;
+  }
+
+  if (mode === "team" && (!userId || !teamId)) {
+    return (
+      <TeamOnboarding 
+        initialUserId={userId} 
+        onComplete={(u, t) => { setUserId(u); setTeamId(t); setMode("team"); }} 
+        onBack={() => setMode(null)} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 lg:p-8 bg-background relative overflow-hidden">
       
       {/* Top Bar */}
-      <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-10">
-        <div className="flex items-center gap-2">
+      <div className="absolute top-6 left-6 right-6 flex justify-between items-start md:items-center z-10 pointer-events-none">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 pointer-events-auto">
           <div className="bg-white px-4 py-2 rounded-2xl shadow-sm border-2 border-border font-bold text-foreground flex items-center gap-2">
             <span role="img" aria-label="star" className="text-xl">⭐</span> Today: {breaksTaken} breaks
           </div>
+          {mode === "team" && (
+            <button 
+              onClick={() => setIsLeaderboardOpen(true)}
+              className="bg-white p-2 rounded-2xl shadow-sm border-2 border-yellow-200 text-yellow-500 hover:border-yellow-400 hover:bg-yellow-50 transition-all cursor-pointer group"
+              title="Team Leaderboard"
+            >
+              <Trophy className="w-6 h-6 fill-current group-hover:scale-110 transition-transform" />
+            </button>
+          )}
         </div>
-        <Button 
-          variant="outline" 
-          size="icon"
-          onClick={() => setIsSettingsOpen(true)}
-          data-testid="button-settings"
-        >
-          <Settings className="w-6 h-6 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center gap-3 pointer-events-auto mt-2 md:mt-0">
+          {mode === "team" && user && (
+            <div className="hidden sm:flex bg-primary/10 px-4 py-2 rounded-2xl font-bold text-primary border-2 border-primary/20 items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              {user.name}
+            </div>
+          )}
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => setIsSettingsOpen(true)}
+            data-testid="button-settings"
+          >
+            <Settings className="w-6 h-6 text-muted-foreground" />
+          </Button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -201,6 +259,25 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Switch Mode Button */}
+      <div className="absolute bottom-6 flex w-full justify-center z-10">
+        <button 
+          onClick={() => setMode(mode === "solo" ? "team" : "solo")}
+          className="text-muted-foreground text-sm font-bold hover:text-foreground transition-colors cursor-pointer bg-white/60 hover:bg-white backdrop-blur-sm px-5 py-2.5 rounded-full border-2 border-border hover:border-muted-foreground/30 shadow-sm"
+        >
+          Switch to {mode === "solo" ? "Team Mode" : "Solo Mode"}
+        </button>
+      </div>
+
+      {/* Leaderboard Modal */}
+      {mode === "team" && (
+        <LeaderboardModal 
+          isOpen={isLeaderboardOpen} 
+          teamId={teamId} 
+          onClose={() => setIsLeaderboardOpen(false)} 
+        />
+      )}
 
       {/* Break Modal */}
       <Modal isOpen={isBreakModalOpen} onClose={() => {}} showClose={false}>

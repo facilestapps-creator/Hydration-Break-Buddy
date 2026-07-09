@@ -3,20 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Break Buddy API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User management
+  - name: teams
+    description: Team management
+  - name: breaks
+    description: Break tracking
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +29,177 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users:
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Bad request
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+  /users/{userId}/stats:
+    get:
+      operationId: getUserStats
+      tags: [users]
+      summary: Get user's break stats (today and this week)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStats"
+        "404":
+          description: Not found
+
+  /teams:
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a new team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "400":
+          description: Bad request
+
+  /teams/join:
+    post:
+      operationId: joinTeam
+      tags: [teams]
+      summary: Join a team using an invite code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamJoinInput"
+      responses:
+        "200":
+          description: Team joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "400":
+          description: Bad request
+        "404":
+          description: Team not found
+
+  /teams/{teamId}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get team info
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "404":
+          description: Not found
+
+  /teams/{teamId}/leaderboard:
+    get:
+      operationId: getTeamLeaderboard
+      tags: [teams]
+      summary: Get weekly leaderboard for a team
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Leaderboard"
+        "404":
+          description: Not found
+
+  /breaks:
+    post:
+      operationId: logBreak
+      tags: [breaks]
+      summary: Log a completed break
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BreakInput"
+      responses:
+        "201":
+          description: Break logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreakEntry"
+        "400":
+          description: Bad request
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +210,132 @@ components:
       required:
         - status
 
+    User:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        teamId:
+          type: ["integer", "null"]
+        teamName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    UserInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+
+    UserStats:
+      type: object
+      required: [userId, todayBreaks, weeklyBreaks, todayHydration, weeklyHydration]
+      properties:
+        userId:
+          type: integer
+        todayBreaks:
+          type: integer
+        weeklyBreaks:
+          type: integer
+        todayHydration:
+          type: integer
+        weeklyHydration:
+          type: integer
+
+    Team:
+      type: object
+      required: [id, name, inviteCode, createdAt, memberCount]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        inviteCode:
+          type: string
+        createdAt:
+          type: string
+        memberCount:
+          type: integer
+
+    TeamInput:
+      type: object
+      required: [name, userId]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        userId:
+          type: integer
+
+    TeamJoinInput:
+      type: object
+      required: [inviteCode, userId]
+      properties:
+        inviteCode:
+          type: string
+        userId:
+          type: integer
+
+    LeaderboardMember:
+      type: object
+      required: [userId, name, weeklyBreaks, todayBreaks, weeklyHydration, rank]
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        weeklyBreaks:
+          type: integer
+        todayBreaks:
+          type: integer
+        weeklyHydration:
+          type: integer
+        rank:
+          type: integer
+        medal:
+          type: ["string", "null"]
+
+    Leaderboard:
+      type: object
+      required: [teamId, teamName, weekStart, members]
+      properties:
+        teamId:
+          type: integer
+        teamName:
+          type: string
+        weekStart:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardMember"
+
+    BreakEntry:
+      type: object
+      required: [id, userId, breakType, completedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        breakType:
+          type: string
+        completedAt:
+          type: string
+
+    BreakInput:
+      type: object
+      required: [userId, breakType]
+      properties:
+        userId:
+          type: integer
+        breakType:
+          type: string
