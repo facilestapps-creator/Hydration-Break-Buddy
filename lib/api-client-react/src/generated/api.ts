@@ -24,6 +24,9 @@ import type {
   BreakInput,
   HealthStatus,
   Leaderboard,
+  PaymentCreateInput,
+  PaymentCreateResponse,
+  PaymentStatusResponse,
   Team,
   TeamInput,
   TeamJoinInput,
@@ -655,6 +658,92 @@ export function useGetTeamLeaderboard<TData = Awaited<ReturnType<typeof getTeamL
 
 
 
+
+
+export const getCreatePaymentUrl = () => {
+  return `/api/payments/create`
+}
+
+/**
+ * @summary Create a Mercado Pago preference for team creation
+ */
+export const createPayment = async (paymentCreateInput: PaymentCreateInput, options?: RequestInit): Promise<PaymentCreateResponse> => {
+  return customFetch<PaymentCreateResponse>(getCreatePaymentUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentCreateInput)
+  });
+}
+
+export const getCreatePaymentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext> => {
+  const mutationKey = ['createPayment'];
+  const {mutation: mutationOptions, request: requestOptions} = options ?
+        options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+        options
+        : {...options, mutation: {...options.mutation, mutationKey}}
+        : {mutation: { mutationKey }, request: undefined};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPayment>>, {data: BodyType<PaymentCreateInput>}> = (props) => {
+    const {data} = props ?? {};
+    return createPayment(data, requestOptions);
+  }
+  return { mutationFn, ...mutationOptions }
+}
+
+export type CreatePaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createPayment>>>
+export type CreatePaymentMutationBody = BodyType<PaymentCreateInput>
+export type CreatePaymentMutationError = ErrorType<void>
+
+/**
+ * @summary Create a Mercado Pago preference for team creation
+ */
+export const useCreatePayment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationResult<Awaited<ReturnType<typeof createPayment>>, TError, {data: BodyType<PaymentCreateInput>}, TContext> => {
+  return useMutation(getCreatePaymentMutationOptions(options));
+}
+
+
+export const getGetPaymentStatusUrl = (token: string) => {
+  return `/api/payments/${token}/status`
+}
+
+/**
+ * @summary Poll payment status by token
+ */
+export const getPaymentStatus = async (token: string, options?: RequestInit): Promise<PaymentStatusResponse> => {
+  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(token), {
+    ...options,
+    method: 'GET'
+  });
+}
+
+export const getGetPaymentStatusQueryKey = (token: string) => {
+  return [`/api/payments/${token}/status`] as const;
+}
+
+export const getGetPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}) => {
+  const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(token);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentStatus>>> = ({ signal }) => getPaymentStatus(token, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: !!token, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentStatus>>>
+export type GetPaymentStatusQueryError = ErrorType<void>
+
+/**
+ * @summary Poll payment status by token
+ */
+export function useGetPaymentStatus<TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(
+  token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPaymentStatusQueryOptions(token, options)
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 
 export const getLogBreakUrl = () => {

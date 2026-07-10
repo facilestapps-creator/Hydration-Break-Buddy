@@ -77,7 +77,8 @@ export const createTeamBodyNameMax = 50;
 
 export const CreateTeamBody = zod.object({
   "name": zod.string().min(1).max(createTeamBodyNameMax),
-  "userId": zod.number()
+  "userId": zod.number(),
+  "paymentToken": zod.string()
 })
 
 export const CreateTeamResponse = zod.object({
@@ -142,6 +143,34 @@ export const GetTeamLeaderboardResponse = zod.object({
   "rank": zod.number(),
   "medal": zod.string().nullish()
 }))
+})
+
+
+/**
+ * @summary Create a Mercado Pago preference for team creation
+ */
+export const CreatePaymentBody = zod.object({
+  "userId": zod.number()
+})
+
+export const CreatePaymentResponse = zod.object({
+  "paymentToken": zod.string(),
+  "checkoutUrl": zod.string(),
+  "amountArs": zod.number()
+})
+
+
+/**
+ * @summary Poll payment status by token
+ */
+export const GetPaymentStatusParams = zod.object({
+  "token": zod.string()
+})
+
+export const GetPaymentStatusResponse = zod.object({
+  "paymentToken": zod.string(),
+  "status": zod.string(),
+  "mpPaymentId": zod.string().nullish()
 })
 
 

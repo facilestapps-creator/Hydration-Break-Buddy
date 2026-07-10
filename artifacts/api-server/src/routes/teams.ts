@@ -11,6 +11,7 @@ import {
   GetTeamLeaderboardParams,
   GetTeamLeaderboardResponse,
 } from "@workspace/api-zod";
+import { paymentsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -43,6 +44,21 @@ router.post("/teams", async (req, res): Promise<void> => {
   const parsed = CreateTeamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Verify payment is approved
+  const paymentRows = await db
+    .select()
+    .from(paymentsTable)
+    .where(eq(paymentsTable.paymentToken, parsed.data.paymentToken));
+
+  if (paymentRows.length === 0) {
+    res.status(402).json({ error: "Payment not found" });
+    return;
+  }
+  if (paymentRows[0].status !== "approved") {
+    res.status(402).json({ error: "Payment not approved yet" });
     return;
   }
 

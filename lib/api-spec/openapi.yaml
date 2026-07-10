@@ -16,6 +16,8 @@ tags:
     description: Team management
   - name: breaks
     description: Break tracking
+  - name: payments
+    description: Mercado Pago payment flow
 paths:
   /healthz:
     get:
@@ -179,6 +181,48 @@ paths:
         "404":
           description: Not found
 
+  /payments/create:
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create a Mercado Pago preference for team creation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentCreateInput"
+      responses:
+        "201":
+          description: Preference created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentCreateResponse"
+        "400":
+          description: Bad request
+
+  /payments/{token}/status:
+    get:
+      operationId: getPaymentStatus
+      tags: [payments]
+      summary: Poll payment status by token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentStatusResponse"
+        "404":
+          description: Not found
+
   /breaks:
     post:
       operationId: logBreak
@@ -266,7 +310,7 @@ components:
 
     TeamInput:
       type: object
-      required: [name, userId]
+      required: [name, userId, paymentToken]
       properties:
         name:
           type: string
@@ -274,6 +318,37 @@ components:
           maxLength: 50
         userId:
           type: integer
+        paymentToken:
+          type: string
+
+    PaymentCreateInput:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: integer
+
+    PaymentCreateResponse:
+      type: object
+      required: [paymentToken, checkoutUrl, amountArs]
+      properties:
+        paymentToken:
+          type: string
+        checkoutUrl:
+          type: string
+        amountArs:
+          type: integer
+
+    PaymentStatusResponse:
+      type: object
+      required: [paymentToken, status]
+      properties:
+        paymentToken:
+          type: string
+        status:
+          type: string
+        mpPaymentId:
+          type: ["string", "null"]
 
     TeamJoinInput:
       type: object

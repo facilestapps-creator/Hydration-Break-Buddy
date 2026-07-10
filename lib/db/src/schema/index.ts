@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -37,3 +37,20 @@ export const breakEntriesTable = pgTable("break_entries", {
 export const insertBreakEntrySchema = createInsertSchema(breakEntriesTable).omit({ id: true, completedAt: true });
 export type InsertBreakEntry = z.infer<typeof insertBreakEntrySchema>;
 export type BreakEntry = typeof breakEntriesTable.$inferSelect;
+
+// Payments table (Mercado Pago)
+export const paymentsTable = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  paymentToken: text("payment_token").notNull().unique(),   // our UUID, used as external_reference
+  mpPreferenceId: text("mp_preference_id").notNull(),
+  mpPaymentId: text("mp_payment_id"),                       // filled in by webhook
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  status: text("status").notNull().default("pending"),      // pending | approved | rejected | cancelled
+  amountArs: integer("amount_ars").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof paymentsTable.$inferSelect;

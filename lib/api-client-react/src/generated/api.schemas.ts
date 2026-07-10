@@ -50,6 +50,23 @@ export interface TeamInput {
      */
   name: string;
   userId: number;
+  paymentToken: string;
+}
+
+export interface PaymentCreateInput {
+  userId: number;
+}
+
+export interface PaymentCreateResponse {
+  paymentToken: string;
+  checkoutUrl: string;
+  amountArs: number;
+}
+
+export interface PaymentStatusResponse {
+  paymentToken: string;
+  status: string;
+  mpPaymentId?: string | null;
 }
 
 export interface TeamJoinInput {
