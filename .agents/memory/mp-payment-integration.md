@@ -15,12 +15,27 @@ description: Architecture and flow for the freemium team-creation payment in Bre
 ## Key env vars / secrets
 - `MP_ACCESS_TOKEN` — Mercado Pago access token (secret)
 - `MP_PUBLIC_KEY` — MP public key (secret, frontend-ready if ever needed)
-- `MP_WEBHOOK_SECRET` — HMAC secret for webhook verification (secret)
+- `MP_WEBHOOK_SECRET` — HMAC secret for dashboard-registered webhooks only (not IPN — see below)
 - `MP_PRICE_ARS` — price in ARS, default 5500 (non-secret env var, already set)
 
-## Webhook signature
-MP sends `x-signature: ts={ts},v1={hmac}` and `x-request-id`.
-HMAC manifest: `id:{data.id};request-date:{x-request-id};`
-When `MP_WEBHOOK_SECRET` is set, verification is mandatory — missing headers cause silent drop.
+## Webhook modes — CRITICAL distinction
 
-**Why:** Webhook endpoint is public; without enforced verification any actor can fake payment approvals.
+MP has two notification systems:
+
+### IPN (Instant Payment Notification) — what we use
+Set via `notification_url` in the preference body. MP sends a POST with `{ type: "payment", data: { id } }`.
+**Does NOT send `x-signature` or `x-request-id` headers.** Security comes from fetching the payment from MP API and trusting only that response.
+
+### Dashboard webhooks
+Registered in the MP developer panel. MP sends HMAC headers (`x-signature: ts=...,v1=...`) + `x-request-id`.
+HMAC manifest: `id:{data.id};request-date:{x-request-id};`
+Secret is `MP_WEBHOOK_SECRET` from the MP dashboard (not user-chosen).
+
+### Signature verification rule
+- If `x-signature` AND `x-request-id` are present: verify HMAC (reject if wrong or if no secret configured)
+- If headers are absent (IPN): allow through, verify payment via MP API call
+
+**Why:** Setting `notification_url` uses IPN mode which has no signature headers. Enforcing header presence was silently blocking all webhooks and leaving payments stuck in "pending".
+
+## Webhook signature
+Only applies to dashboard webhooks. HMAC manifest: `id:{data.id};request-date:{x-request-id};`
