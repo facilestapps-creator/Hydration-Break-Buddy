@@ -20,26 +20,31 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
 
     const mpPaymentId = String(body.data.id);
 
-    // Verify HMAC signature if secret is configured
+    // Verify HMAC signature — mandatory when MP_WEBHOOK_SECRET is configured
     const xSignature = req.headers["x-signature"] as string | undefined;
     const xRequestId = req.headers["x-request-id"] as string | undefined;
     const secret = process.env.MP_WEBHOOK_SECRET;
 
-    if (xSignature && xRequestId && secret) {
+    if (secret) {
+      // Reject outright if headers are missing
+      if (!xSignature || !xRequestId) return;
+
       const parts: Record<string, string> = {};
       for (const part of xSignature.split(",")) {
-        const [k, v] = part.split("=");
-        if (k && v) parts[k.trim()] = v.trim();
+        const eqIdx = part.indexOf("=");
+        if (eqIdx === -1) continue;
+        const k = part.slice(0, eqIdx).trim();
+        const v = part.slice(eqIdx + 1).trim();
+        if (k && v) parts[k] = v;
       }
-      const ts = parts["ts"];
       const v1 = parts["v1"];
-      if (ts && v1) {
-        const template = `id:${mpPaymentId};request-date:${xRequestId};`;
-        const expected = createHmac("sha256", secret)
-          .update(template)
-          .digest("hex");
-        if (v1 !== expected) return; // Invalid signature — silently ignore
-      }
+      // Reject if the v1 signature component is absent
+      if (!v1) return;
+
+      // MP's manifest format: id:{data.id};request-date:{x-request-id};
+      const template = `id:${mpPaymentId};request-date:${xRequestId};`;
+      const expected = createHmac("sha256", secret).update(template).digest("hex");
+      if (v1 !== expected) return; // Bad signature — silently drop
     }
 
     // Fetch full payment details from MP API

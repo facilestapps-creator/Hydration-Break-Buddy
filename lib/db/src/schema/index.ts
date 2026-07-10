@@ -47,6 +47,7 @@ export const paymentsTable = pgTable("payments", {
   userId: integer("user_id").notNull().references(() => usersTable.id),
   status: text("status").notNull().default("pending"),      // pending | approved | rejected | cancelled
   amountArs: integer("amount_ars").notNull(),
+  consumed: boolean("consumed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

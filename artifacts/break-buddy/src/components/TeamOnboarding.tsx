@@ -37,8 +37,9 @@ export function TeamOnboarding({
   const bbPaymentToken = searchParams.get("token");
 
   const getInitialStep = (): Step => {
-    if (bbPaymentResult === "success" && bbPaymentToken) return "pay-pending";
-    if (bbPaymentResult === "failure" && bbPaymentToken) return "payment";
+    // success OR pending both go to polling — MP can redirect to pending before the webhook fires
+    if ((bbPaymentResult === "success" || bbPaymentResult === "pending") && bbPaymentToken) return "pay-pending";
+    if (bbPaymentResult === "failure") return "payment";
     if (initialUserId) return "team-choice";
     return "name";
   };

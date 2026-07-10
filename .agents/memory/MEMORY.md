@@ -1,0 +1,2 @@
+- [MP Payment Integration](mp-payment-integration.md) — freemium: solo team *creation* is paid ($5,500 ARS one-time via MP Checkout Pro); joining is always free.
+- [Payment Token Security](payment-token-security.md) — token must be atomically consumed (consumed=true) at team creation, scoped to userId; never just check status=approved.

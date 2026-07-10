@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, inArray, count } from "drizzle-orm";
-import { db, usersTable, teamsTable, breakEntriesTable } from "@workspace/db";
+import { db, usersTable, teamsTable, breakEntriesTable, paymentsTable } from "@workspace/db";
 import {
   CreateTeamBody,
   CreateTeamResponse,
@@ -11,7 +11,6 @@ import {
   GetTeamLeaderboardParams,
   GetTeamLeaderboardResponse,
 } from "@workspace/api-zod";
-import { paymentsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -47,18 +46,22 @@ router.post("/teams", async (req, res): Promise<void> => {
     return;
   }
 
-  // Verify payment is approved
-  const paymentRows = await db
-    .select()
-    .from(paymentsTable)
-    .where(eq(paymentsTable.paymentToken, parsed.data.paymentToken));
+  // Atomically claim the payment token — prevents reuse and enforces user binding
+  const claimed = await db
+    .update(paymentsTable)
+    .set({ consumed: true, updatedAt: new Date() })
+    .where(
+      and(
+        eq(paymentsTable.paymentToken, parsed.data.paymentToken),
+        eq(paymentsTable.status, "approved"),
+        eq(paymentsTable.userId, parsed.data.userId),
+        eq(paymentsTable.consumed, false),
+      )
+    )
+    .returning({ id: paymentsTable.id });
 
-  if (paymentRows.length === 0) {
-    res.status(402).json({ error: "Payment not found" });
-    return;
-  }
-  if (paymentRows[0].status !== "approved") {
-    res.status(402).json({ error: "Payment not approved yet" });
+  if (claimed.length === 0) {
+    res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
     return;
   }
 
