@@ -206,7 +206,7 @@ export function TeamOnboarding({
             <ArrowLeft className="w-4 h-4" /> {t("onboarding.backToMode")}
           </button>
         )}
-        {(step === "payment" || step === "join-team") && (
+        {(step === "payment" || step === "join-team" || step === "create-team") && (
           <button
             onClick={() => { setStep("team-choice"); setError(""); setPaymentFailedMsg(""); }}
             className="flex items-center gap-2 text-muted-foreground font-bold text-sm mb-6 hover:text-foreground transition-colors cursor-pointer"

@@ -13,12 +13,33 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
   try {
     const body = req.body as {
       type?: string;
+      action?: string;
       data?: { id?: string | number };
+      id?: string | number;
+      topic?: string;
     };
 
-    if (body.type !== "payment" || !body.data?.id) return;
+    // Debug: log the full webhook payload to understand what MP sends
+    console.log("[webhook] headers:", JSON.stringify({
+      "x-signature": req.headers["x-signature"],
+      "x-request-id": req.headers["x-request-id"],
+      "content-type": req.headers["content-type"],
+    }));
+    console.log("[webhook] body:", JSON.stringify(body));
+    console.log("[webhook] query:", JSON.stringify(req.query));
 
-    const mpPaymentId = String(body.data.id);
+    // Support both new format { type, data.id } and old IPN format { topic, id }
+    let mpPaymentId: string | undefined;
+    if ((body.type === "payment" || body.action?.startsWith("payment")) && body.data?.id) {
+      mpPaymentId = String(body.data.id);
+    } else if (body.topic === "payment" && body.id) {
+      mpPaymentId = String(body.id);
+    }
+
+    if (!mpPaymentId) {
+      console.log("[webhook] skipping — no payment ID found in body");
+      return;
+    }
 
     // Verify HMAC signature when MP sends one (dashboard-registered webhooks).
     // IPN notifications (sent via notification_url in preference) do NOT include
