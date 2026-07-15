@@ -35,7 +35,7 @@ router.post("/payments/create", async (req, res): Promise<void> => {
   const paymentToken = randomUUID();
   const amountArs = parseInt(process.env.MP_PRICE_ARS ?? "5500", 10);
   const domain = getPublicDomain();
-  const frontendBase = `https://${domain}/break-buddy`;
+  const frontendBase = `https://${domain}`;   // app lives at root (BASE_PATH="/")
   const apiBase = `https://${domain}/api`;
 
   const preference = new Preference(getMPClient());

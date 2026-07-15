@@ -95,8 +95,9 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
         updatedAt: new Date(),
       })
       .where(eq(paymentsTable.paymentToken, externalRef));
-  } catch {
-    // Already responded 200; log swallowed to avoid MP retry storm
+  } catch (err) {
+    // Already responded 200; log error for debugging without triggering MP retry storm
+    console.error("[webhook] processing error:", err);
   }
 });
 
