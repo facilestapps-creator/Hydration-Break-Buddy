@@ -49,69 +49,90 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
 
   const userId = req.userId;
 
-  // Atomically claim the payment token — prevents reuse and enforces user binding
-  const claimed = await db
-    .update(paymentsTable)
-    .set({ consumed: true, updatedAt: new Date() })
-    .where(
-      and(
-        eq(paymentsTable.paymentToken, parsed.data.paymentToken),
-        eq(paymentsTable.status, "approved"),
-        eq(paymentsTable.userId, userId),
-        eq(paymentsTable.consumed, false),
-      )
-    )
-    .returning({
-      id: paymentsTable.id,
-      plan: paymentsTable.plan,
-      mpPreapprovalId: paymentsTable.mpPreapprovalId,
-    });
-
-  if (claimed.length === 0) {
-    res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
-    return;
-  }
-
-  const paymentPlan = (claimed[0].plan ?? "team") as "team" | "company";
-  const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
-  const memberLimit = paymentPlan === "company" ? null : 10;
-
-  // Verify user exists
+  // Read-only pre-checks outside the transaction to keep the critical section short.
   const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
     res.status(400).json({ error: "User not found" });
     return;
   }
 
-  // Generate unique invite code
+  // Generate a candidate invite code before entering the transaction.
+  // If there is a uniqueness collision at insert time the DB constraint will
+  // reject the insert; the transaction rolls back, returning the payment token
+  // to an unconsumed state — the user can retry and will get a new code.
   let inviteCode = generateInviteCode();
-  let attempts = 0;
-  while (attempts < 5) {
-    const existing = await db.select().from(teamsTable).where(eq(teamsTable.inviteCode, inviteCode));
+  for (let i = 0; i < 5; i++) {
+    const existing = await db.select({ id: teamsTable.id }).from(teamsTable).where(eq(teamsTable.inviteCode, inviteCode));
     if (existing.length === 0) break;
     inviteCode = generateInviteCode();
-    attempts++;
   }
 
-  // Set subscription period: now + 1 month
-  const currentPeriodEnd = new Date();
-  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+  // ── Single transaction: claim the payment AND create the team ──────────
+  // If anything after the claim fails, the transaction rolls back and the
+  // payment is NOT marked consumed — the user keeps the ability to retry.
+  let team: typeof teamsTable.$inferSelect;
+  let paymentPlan: "team" | "company";
 
-  const [team] = await db
-    .insert(teamsTable)
-    .values({
-      name: parsed.data.name,
-      inviteCode,
-      plan: paymentPlan,
-      memberLimit,
-      subscriptionStatus: "active",
-      currentPeriodEnd,
-      mpPreapprovalId,
-    })
-    .returning();
+  try {
+    const result = await db.transaction(async (tx) => {
+      // Claim the payment token atomically
+      const claimed = await tx
+        .update(paymentsTable)
+        .set({ consumed: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(paymentsTable.paymentToken, parsed.data.paymentToken),
+            eq(paymentsTable.status, "approved"),
+            eq(paymentsTable.userId, userId),
+            eq(paymentsTable.consumed, false),
+          )
+        )
+        .returning({
+          id: paymentsTable.id,
+          plan: paymentsTable.plan,
+          mpPreapprovalId: paymentsTable.mpPreapprovalId,
+        });
 
-  // Add the creator to the team
-  await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, userId));
+      if (claimed.length === 0) {
+        // Throwing inside a transaction causes an automatic rollback.
+        throw Object.assign(new Error("PAYMENT_NOT_CLAIMABLE"), { isPaymentError: true });
+      }
+
+      const plan = (claimed[0].plan ?? "team") as "team" | "company";
+      const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
+      const memberLimit = plan === "company" ? null : 10;
+
+      const currentPeriodEnd = new Date();
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+      const [createdTeam] = await tx
+        .insert(teamsTable)
+        .values({
+          name: parsed.data.name,
+          inviteCode,
+          plan,
+          memberLimit,
+          subscriptionStatus: "active",
+          currentPeriodEnd,
+          mpPreapprovalId,
+        })
+        .returning();
+
+      // Add the creator to the team within the same transaction
+      await tx.update(usersTable).set({ teamId: createdTeam.id }).where(eq(usersTable.id, userId));
+
+      return { team: createdTeam, paymentPlan: plan };
+    });
+
+    team = result.team;
+    paymentPlan = result.paymentPlan;
+  } catch (err: unknown) {
+    if (err instanceof Error && (err as { isPaymentError?: boolean }).isPaymentError) {
+      res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
+      return;
+    }
+    throw err; // unexpected DB error — propagate to global handler
+  }
 
   res.status(201).json(CreateTeamResponse.parse({
     id: team.id,
@@ -119,7 +140,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
     inviteCode: team.inviteCode,
     createdAt: team.createdAt.toISOString(),
     memberCount: 1,
-    plan: team.plan,
+    plan: paymentPlan,
     subscriptionStatus: team.subscriptionStatus,
     logoUrl: team.logoUrl ?? null,
     nearMemberLimit: false,
