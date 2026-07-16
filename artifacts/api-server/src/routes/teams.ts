@@ -11,6 +11,7 @@ import {
   GetTeamLeaderboardParams,
   GetTeamLeaderboardResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -39,12 +40,14 @@ async function getTeamMemberCount(teamId: number): Promise<number> {
   return Number(rows[0]?.cnt ?? 0);
 }
 
-router.post("/teams", async (req, res): Promise<void> => {
+router.post("/teams", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateTeamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const userId = req.userId; // set by requireAuth middleware
 
   // Atomically claim the payment token — prevents reuse and enforces user binding
   const claimed = await db
@@ -54,7 +57,7 @@ router.post("/teams", async (req, res): Promise<void> => {
       and(
         eq(paymentsTable.paymentToken, parsed.data.paymentToken),
         eq(paymentsTable.status, "approved"),
-        eq(paymentsTable.userId, parsed.data.userId),
+        eq(paymentsTable.userId, userId),
         eq(paymentsTable.consumed, false),
       )
     )
@@ -66,7 +69,7 @@ router.post("/teams", async (req, res): Promise<void> => {
   }
 
   // Verify user exists
-  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, parsed.data.userId));
+  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
     res.status(400).json({ error: "User not found" });
     return;
@@ -85,7 +88,7 @@ router.post("/teams", async (req, res): Promise<void> => {
   const [team] = await db.insert(teamsTable).values({ name: parsed.data.name, inviteCode }).returning();
 
   // Add the creator to the team
-  await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, parsed.data.userId));
+  await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, userId));
 
   res.status(201).json(CreateTeamResponse.parse({
     id: team.id,
@@ -96,7 +99,7 @@ router.post("/teams", async (req, res): Promise<void> => {
   }));
 });
 
-router.post("/teams/join", async (req, res): Promise<void> => {
+router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
   const parsed = JoinTeamBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -110,15 +113,16 @@ router.post("/teams/join", async (req, res): Promise<void> => {
   }
 
   const team = teamRows[0];
+  const userId = req.userId; // set by requireAuth middleware
 
   // Verify user exists
-  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, parsed.data.userId));
+  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
     res.status(400).json({ error: "User not found" });
     return;
   }
 
-  await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, parsed.data.userId));
+  await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, userId));
 
   const memberCount = await getTeamMemberCount(team.id);
 
@@ -159,7 +163,7 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/teams/:teamId/leaderboard", async (req, res): Promise<void> => {
+router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<void> => {
   const params = GetTeamLeaderboardParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

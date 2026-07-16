@@ -49,13 +49,11 @@ export interface TeamInput {
      * @maxLength 50
      */
   name: string;
-  userId: number;
   paymentToken: string;
 }
 
-export interface PaymentCreateInput {
-  userId: number;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface PaymentCreateInput {}
 
 export interface PaymentCreateResponse {
   paymentToken: string;
@@ -71,7 +69,6 @@ export interface PaymentStatusResponse {
 
 export interface TeamJoinInput {
   inviteCode: string;
-  userId: number;
 }
 
 export interface LeaderboardMember {
@@ -100,7 +97,6 @@ export interface BreakEntry {
 }
 
 export interface BreakInput {
-  userId: number;
   breakType: string;
 }
 

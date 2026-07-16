@@ -77,7 +77,6 @@ export const createTeamBodyNameMax = 50;
 
 export const CreateTeamBody = zod.object({
   "name": zod.string().min(1).max(createTeamBodyNameMax),
-  "userId": zod.number(),
   "paymentToken": zod.string()
 })
 
@@ -94,8 +93,7 @@ export const CreateTeamResponse = zod.object({
  * @summary Join a team using an invite code
  */
 export const JoinTeamBody = zod.object({
-  "inviteCode": zod.string(),
-  "userId": zod.number()
+  "inviteCode": zod.string()
 })
 
 export const JoinTeamResponse = zod.object({
@@ -149,9 +147,7 @@ export const GetTeamLeaderboardResponse = zod.object({
 /**
  * @summary Create a Mercado Pago preference for team creation
  */
-export const CreatePaymentBody = zod.object({
-  "userId": zod.number()
-})
+export const CreatePaymentBody = zod.object({})
 
 export const CreatePaymentResponse = zod.object({
   "paymentToken": zod.string(),
@@ -178,7 +174,6 @@ export const GetPaymentStatusResponse = zod.object({
  * @summary Log a completed break
  */
 export const LogBreakBody = zod.object({
-  "userId": zod.number(),
   "breakType": zod.string()
 })
 

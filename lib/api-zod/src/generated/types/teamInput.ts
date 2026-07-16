@@ -12,5 +12,5 @@ export interface TeamInput {
      * @maxLength 50
      */
   name: string;
-  userId: number;
+  paymentToken: string;
 }

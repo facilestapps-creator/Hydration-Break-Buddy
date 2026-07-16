@@ -128,10 +128,9 @@ export function TeamOnboarding({
   };
 
   const handleInitiatePayment = () => {
-    if (!userId) return;
     setError("");
     createPayment.mutate(
-      { data: { userId } },
+      { data: {} },
       {
         onSuccess: (result) => {
           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
@@ -148,7 +147,7 @@ export function TeamOnboarding({
     if (!teamName.trim() || !userId || !pendingToken) return;
     setError("");
     createTeam.mutate(
-      { data: { name: teamName.trim(), userId, paymentToken: pendingToken } },
+      { data: { name: teamName.trim(), paymentToken: pendingToken! } },
       {
         onSuccess: (team) => {
           setPendingToken(null);
@@ -166,7 +165,7 @@ export function TeamOnboarding({
     if (!inviteCode.trim() || !userId) return;
     setError("");
     joinTeam.mutate(
-      { data: { inviteCode: inviteCode.trim().toUpperCase(), userId } },
+      { data: { inviteCode: inviteCode.trim().toUpperCase() } },
       {
         onSuccess: (team) => {
           onComplete(userId, team.id);

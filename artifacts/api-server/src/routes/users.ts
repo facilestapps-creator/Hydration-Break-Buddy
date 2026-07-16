@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, sql } from "drizzle-orm";
-import { db, usersTable, teamsTable, breakEntriesTable } from "@workspace/db";
+import { eq, and, gte } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { createHash } from "crypto";
+import { db, usersTable, teamsTable, breakEntriesTable, sessionsTable } from "@workspace/db";
 import {
   CreateUserBody,
   CreateUserResponse,
@@ -9,10 +11,11 @@ import {
   GetUserStatsParams,
   GetUserStatsResponse,
 } from "@workspace/api-zod";
+import { strictLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
 
-router.post("/users", async (req, res): Promise<void> => {
+router.post("/users", strictLimiter, async (req, res): Promise<void> => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -23,6 +26,18 @@ router.post("/users", async (req, res): Promise<void> => {
     .insert(usersTable)
     .values({ name: parsed.data.name })
     .returning();
+
+  // Create a server-side session: opaque token → httpOnly cookie, hash stored in DB.
+  const sessionToken = randomUUID();
+  const tokenHash = createHash("sha256").update(sessionToken).digest("hex");
+  await db.insert(sessionsTable).values({ userId: user.id, tokenHash });
+
+  res.cookie("bb_session", sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
 
   res.status(201).json(CreateUserResponse.parse({
     id: user.id,

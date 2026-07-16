@@ -7,6 +7,5 @@
  */
 
 export interface BreakInput {
-  userId: number;
   breakType: string;
 }

@@ -7,6 +7,15 @@ import { createHmac } from "crypto";
 const router: IRouter = Router();
 
 router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+
+  // Fail closed in production: if no secret is configured, we cannot verify
+  // the payload authenticity — reject silently rather than process unverified data.
+  if (process.env.NODE_ENV === "production" && !secret) {
+    res.status(200).json({ received: false, reason: "webhook secret not configured" });
+    return;
+  }
+
   // Always respond 200 immediately — MP retries on failure
   res.status(200).json({ received: true });
 
@@ -19,15 +28,6 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
       topic?: string;
     };
 
-    // Debug: log the full webhook payload to understand what MP sends
-    console.log("[webhook] headers:", JSON.stringify({
-      "x-signature": req.headers["x-signature"],
-      "x-request-id": req.headers["x-request-id"],
-      "content-type": req.headers["content-type"],
-    }));
-    console.log("[webhook] body:", JSON.stringify(body));
-    console.log("[webhook] query:", JSON.stringify(req.query));
-
     // Support both new format { type, data.id } and old IPN format { topic, id }
     let mpPaymentId: string | undefined;
     if ((body.type === "payment" || body.action?.startsWith("payment")) && body.data?.id) {
@@ -37,7 +37,6 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
     }
 
     if (!mpPaymentId) {
-      console.log("[webhook] skipping — no payment ID found in body");
       return;
     }
 
@@ -46,7 +45,6 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
     // x-signature / x-request-id — they are validated by fetching from the MP API below.
     const xSignature = req.headers["x-signature"] as string | undefined;
     const xRequestId = req.headers["x-request-id"] as string | undefined;
-    const secret = process.env.MP_WEBHOOK_SECRET;
 
     if (xSignature && xRequestId) {
       // Headers present — signature verification is mandatory if we have a secret
@@ -67,8 +65,7 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
         const expected = createHmac("sha256", secret).update(template).digest("hex");
         if (v1 !== expected) return; // Bad signature — silently drop
       }
-      // If no secret is configured but headers are present, we still allow through
-      // (real MP payment details are fetched and verified below)
+      // If no secret configured in development, allow through (real MP details verified below)
     }
     // If no signature headers: IPN mode — proceed; MP API call below confirms legitimacy
 

@@ -8,5 +8,4 @@
 
 export interface TeamJoinInput {
   inviteCode: string;
-  userId: number;
 }

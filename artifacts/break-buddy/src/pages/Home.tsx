@@ -113,7 +113,7 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
     // Log to server in team mode
     if (mode === "team" && userId) {
-      logBreak.mutate({ data: { userId, breakType: activeBreakType } }, {
+      logBreak.mutate({ data: { breakType: activeBreakType } }, {
         onSuccess: () => {
           if (teamId) queryClient.invalidateQueries({ queryKey: getGetTeamLeaderboardQueryKey(teamId) });
           queryClient.invalidateQueries({ queryKey: getGetUserStatsQueryKey(userId) });

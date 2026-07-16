@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, paymentsTable } from "@workspace/db";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { randomUUID } from "crypto";
+import { requireAuth } from "../middlewares/auth";
+import { strictLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
 
@@ -19,12 +21,8 @@ function getMPClient() {
   });
 }
 
-router.post("/payments/create", async (req, res): Promise<void> => {
-  const { userId } = req.body as { userId?: unknown };
-  if (typeof userId !== "number" || !Number.isInteger(userId)) {
-    res.status(400).json({ error: "userId must be an integer" });
-    return;
-  }
+router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Promise<void> => {
+  const userId = req.userId; // set by requireAuth middleware
 
   const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
