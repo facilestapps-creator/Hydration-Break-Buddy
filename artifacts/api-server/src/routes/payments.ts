@@ -95,6 +95,37 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
   }
 
   const payment = rows[0];
+
+  // Fallback: if still pending, query MP directly in case the webhook never arrived
+  if (payment.status === "pending") {
+    try {
+      const mpRes = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(token)}&sort=date_created&criteria=desc&limit=1`,
+        { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
+      );
+      if (mpRes.ok) {
+        const data = await mpRes.json() as { results?: Array<{ id: number; status: string }> };
+        const mpPayment = data.results?.[0];
+        if (mpPayment) {
+          const newStatus =
+            mpPayment.status === "approved" ? "approved" :
+            mpPayment.status === "rejected" ? "rejected" :
+            mpPayment.status === "cancelled" ? "cancelled" : null;
+          if (newStatus && newStatus !== "pending") {
+            await db
+              .update(paymentsTable)
+              .set({ status: newStatus, mpPaymentId: String(mpPayment.id), updatedAt: new Date() })
+              .where(eq(paymentsTable.paymentToken, token));
+            res.json({ paymentToken: token, status: newStatus, mpPaymentId: String(mpPayment.id) });
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[status] MP fallback check failed:", err);
+    }
+  }
+
   res.json({
     paymentToken: payment.paymentToken,
     status: payment.status,
