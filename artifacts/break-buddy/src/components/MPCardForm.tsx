@@ -21,23 +21,26 @@ declare global {
   }
 }
 
+// createCardToken lives on mp.fields (the collection), NOT on a field instance.
+interface MPFields {
+  create(
+    type: "cardNumber" | "expirationDate" | "securityCode",
+    options: { placeholder?: string; style?: Record<string, string> }
+  ): MPField;
+  createCardToken(params: {
+    cardholderName: string;
+    identificationType?: string;
+    identificationNumber?: string;
+  }): Promise<{ id?: string; token?: string }>;
+}
+
 interface MPInstance {
-  fields: {
-    create(
-      type: "cardNumber" | "expirationDate" | "securityCode",
-      options: { placeholder?: string; style?: Record<string, string> }
-    ): MPField;
-  };
+  fields: MPFields;
 }
 
 interface MPField {
   mount(elementId: string): void;
   unmount(): void;
-  createCardToken(params: {
-    cardholderName: string;
-    identificationType?: string;
-    identificationNumber?: string;
-  }): Promise<{ id: string }>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -71,6 +74,9 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
   const [formError, setFormError] = useState("");
   const [tokenizing, setTokenizing] = useState(false);
 
+  // mpFieldsRef holds the mp.fields object — createCardToken lives HERE, not
+  // on individual field instances (common MP Secure Fields v2 misunderstanding).
+  const mpFieldsRef = useRef<MPFields | null>(null);
   const cardFieldRef = useRef<MPField | null>(null);
   const expiryFieldRef = useRef<MPField | null>(null);
   const cvcFieldRef = useRef<MPField | null>(null);
@@ -88,6 +94,9 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
     const initFields = () => {
       try {
         const mp = new window.MercadoPago(publicKey, { locale: "es-AR" });
+
+        // Store mp.fields — createCardToken() lives here, NOT on field instances.
+        mpFieldsRef.current = mp.fields;
 
         const cardNumber = mp.fields.create("cardNumber", {
           placeholder: t("onboarding.payment.cardNumberPlaceholder"),
@@ -141,6 +150,7 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
       cardFieldRef.current?.unmount();
       expiryFieldRef.current?.unmount();
       cvcFieldRef.current?.unmount();
+      mpFieldsRef.current = null;
       cardFieldRef.current = null;
       expiryFieldRef.current = null;
       cvcFieldRef.current = null;
@@ -151,7 +161,7 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
   // ── Form submit ──────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cardFieldRef.current || sdkState !== "ready" || isLoading || tokenizing) return;
+    if (!mpFieldsRef.current || sdkState !== "ready" || isLoading || tokenizing) return;
     setFormError("");
 
     if (!email.trim() || !email.includes("@")) {
@@ -165,18 +175,27 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
 
     setTokenizing(true);
     try {
-      const token = await cardFieldRef.current.createCardToken({
+      // Diagnostic: confirm what mp.fields actually exposes at submit time.
+      console.log("[MPCardForm] mpFieldsRef keys:", Object.keys(mpFieldsRef.current));
+      console.log("[MPCardForm] createCardToken type:", typeof (mpFieldsRef.current as Record<string, unknown>).createCardToken);
+
+      // createCardToken lives on mp.fields, not on an individual field instance.
+      const result = await mpFieldsRef.current.createCardToken({
         cardholderName: cardholderName.trim().toUpperCase(),
         ...(dniNumber.trim()
           ? { identificationType: "DNI", identificationNumber: dniNumber.trim() }
           : {}),
       });
-      onTokenize(token.id, email.trim());
+      // MP may return the token id as `id` or `token` depending on SDK version.
+      const tokenId = result.id ?? result.token;
+      if (!tokenId) {
+        throw new Error("MP returned an empty token");
+      }
+      onTokenize(tokenId, email.trim());
     } catch (err: unknown) {
       console.error("[MPCardForm] createCardToken failed:", err);
       const raw = err instanceof Error ? err.message : String(err);
-      // MP returns structured error messages — extract something readable
-      setFormError(t("onboarding.payment.tokenError") + (raw ? ` (${raw})` : ""));
+      setFormError(t("onboarding.payment.tokenError") + (raw ? `: ${raw}` : ""));
     } finally {
       setTokenizing(false);
     }
