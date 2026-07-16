@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
+import { MPCardForm } from "./MPCardForm";
 import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle, Building2 } from "lucide-react";
 import {
   useCreateUser,
@@ -53,10 +54,21 @@ export function TeamOnboarding({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  // Persist selected plan across MP redirect
+  // Persist selected plan across MP redirect (3DS case)
   const [selectedPlan, setSelectedPlan] = useState<"team" | "company">(
     () => (window.localStorage.getItem("bb-pending-plan") as "team" | "company" | null) ?? "team"
   );
+
+  // MP public key fetched from /api/config — passed to MPCardForm for SDK init
+  const [mpPublicKey, setMpPublicKey] = useState("");
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d: { mpPublicKey?: string }) => {
+        if (d.mpPublicKey) setMpPublicKey(d.mpPublicKey);
+      })
+      .catch((e) => console.warn("[TeamOnboarding] /api/config fetch failed:", e));
+  }, []);
 
   const [pendingToken, setPendingToken] = useState<string | null>(
     bbPaymentToken ?? window.localStorage.getItem("bb-pending-payment")
@@ -134,18 +146,35 @@ export function TeamOnboarding({
     setStep("payment");
   };
 
-  const handleInitiatePayment = () => {
+  // Called by MPCardForm after the card is tokenized client-side.
+  // We forward the one-time card_token_id + payer_email to the backend,
+  // which calls POST /preapproval and returns the outcome.
+  const handleCardTokenized = (cardTokenId: string, payerEmail: string) => {
     setError("");
     createPayment.mutate(
-      { data: { plan: selectedPlan } },
+      { data: { plan: selectedPlan, cardTokenId, payerEmail } },
       {
         onSuccess: (result) => {
           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
-          window.localStorage.setItem("bb-pending-plan", selectedPlan);
           setPendingToken(result.paymentToken);
-          window.location.href = result.checkoutUrl;
+          if (result.status === "approved") {
+            // Subscription authorized immediately — skip the polling step
+            window.localStorage.removeItem("bb-pending-plan");
+            setStep("create-team");
+          } else {
+            // Needs 3DS or additional MP auth — redirect to init_point
+            window.localStorage.setItem("bb-pending-plan", selectedPlan);
+            if (result.checkoutUrl) {
+              window.location.href = result.checkoutUrl;
+            } else {
+              setStep("pay-pending");
+            }
+          }
         },
-        onError: () => setError(t("onboarding.payment.error")),
+        onError: (err) => {
+          const detail = (err as { data?: { detail?: string } })?.data?.detail;
+          setError(detail ?? t("onboarding.payment.error"));
+        },
       }
     );
   };
@@ -422,22 +451,12 @@ export function TeamOnboarding({
 
               {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
 
-              <Button
-                variant={selectedPlan === "company" ? "secondary" : "primary"}
-                size="lg"
-                className="w-full"
-                disabled={createPayment.isPending}
-                onClick={handleInitiatePayment}
-              >
-                {createPayment.isPending ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    {t("onboarding.payment.loading")}
-                  </>
-                ) : (
-                  t("onboarding.payment.button")
-                )}
-              </Button>
+              <MPCardForm
+                publicKey={mpPublicKey}
+                plan={selectedPlan}
+                onTokenize={handleCardTokenized}
+                isLoading={createPayment.isPending}
+              />
             </motion.div>
           )}
 
