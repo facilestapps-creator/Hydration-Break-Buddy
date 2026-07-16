@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
-import { MPCardForm } from "./MPCardForm";
 import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle, Building2 } from "lucide-react";
 import {
   useCreateUser,
@@ -58,17 +57,6 @@ export function TeamOnboarding({
   const [selectedPlan, setSelectedPlan] = useState<"team" | "company">(
     () => (window.localStorage.getItem("bb-pending-plan") as "team" | "company" | null) ?? "team"
   );
-
-  // MP public key fetched from /api/config — passed to MPCardForm for SDK init
-  const [mpPublicKey, setMpPublicKey] = useState("");
-  useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((d: { mpPublicKey?: string }) => {
-        if (d.mpPublicKey) setMpPublicKey(d.mpPublicKey);
-      })
-      .catch((e) => console.warn("[TeamOnboarding] /api/config fetch failed:", e));
-  }, []);
 
   const [pendingToken, setPendingToken] = useState<string | null>(
     bbPaymentToken ?? window.localStorage.getItem("bb-pending-payment")
@@ -146,29 +134,21 @@ export function TeamOnboarding({
     setStep("payment");
   };
 
-  // Called by MPCardForm after the card is tokenized client-side.
-  // We forward the one-time card_token_id + payer_email to the backend,
-  // which calls POST /preapproval and returns the outcome.
-  const handleCardTokenized = (cardTokenId: string, payerEmail: string) => {
+  // Redirect the user to MP's hosted subscription checkout page.
+  const handleInitiatePayment = () => {
     setError("");
     createPayment.mutate(
-      { data: { plan: selectedPlan, cardTokenId, payerEmail } },
+      { data: { plan: selectedPlan } },
       {
         onSuccess: (result) => {
           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
+          window.localStorage.setItem("bb-pending-plan", selectedPlan);
           setPendingToken(result.paymentToken);
-          if (result.status === "approved") {
-            // Subscription authorized immediately — skip the polling step
-            window.localStorage.removeItem("bb-pending-plan");
-            setStep("create-team");
+          if (result.checkoutUrl) {
+            window.location.href = result.checkoutUrl;
           } else {
-            // Needs 3DS or additional MP auth — redirect to init_point
-            window.localStorage.setItem("bb-pending-plan", selectedPlan);
-            if (result.checkoutUrl) {
-              window.location.href = result.checkoutUrl;
-            } else {
-              setStep("pay-pending");
-            }
+            // Fallback: no checkout URL (shouldn't happen), go to polling step
+            setStep("pay-pending");
           }
         },
         onError: (err) => {
@@ -451,12 +431,23 @@ export function TeamOnboarding({
 
               {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
 
-              <MPCardForm
-                publicKey={mpPublicKey}
-                plan={selectedPlan}
-                onTokenize={handleCardTokenized}
-                isLoading={createPayment.isPending}
-              />
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                onClick={handleInitiatePayment}
+                disabled={createPayment.isPending}
+              >
+                {createPayment.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("onboarding.payment.loading")}</>
+                ) : (
+                  t("onboarding.payment.button")
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center font-medium">
+                {t("onboarding.payment.secureNote")}
+              </p>
             </motion.div>
           )}
 

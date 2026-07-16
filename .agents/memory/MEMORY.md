@@ -1,3 +1,3 @@
-- [MP Payment Integration](mp-payment-integration.md) — NOW SUPERSEDED: switched from one-time Preference to monthly PreApproval subscriptions (two plans: team/company).
-- [Subscription flow — MP PreApproval](subscription-flow.md) — team creation uses MP PreApproval; plan IDs in env vars; webhook handles authorized/paused/cancelled events.
+- [MP Payment Integration](mp-payment-integration.md) — Break Buddy uses MP PreApproval subscriptions; checkout URL redirect, no card data on our server.
+- [Subscription flow — MP PreApproval redirect](subscription-flow.md) — redirect to plan init_point with external_reference+back_url params; POST /preapproval not used (requires card_token_id even for redirect).
 - [Payment Token Security](payment-token-security.md) — token must be atomically consumed (consumed=true) at team creation, scoped to userId; never just check status=approved.

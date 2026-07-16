@@ -59,18 +59,15 @@ export interface TeamInput {
 
 export interface PaymentCreateInput {
   plan: 'team' | 'company';
-  cardTokenId: string;
-  payerEmail: string;
 }
 
 export interface PaymentCreateResponse {
   paymentToken: string;
   plan: string;
   amountArs: number;
-  /** "approved" = subscription authorized immediately; "pending" = needs 3DS redirect */
-  status: 'approved' | 'pending';
-  /** Only present when status === "pending" */
-  checkoutUrl?: string | null;
+  status: 'pending';
+  /** MP hosted checkout URL — redirect the user here to complete subscription */
+  checkoutUrl: string | null;
 }
 
 export interface PaymentStatusResponse {

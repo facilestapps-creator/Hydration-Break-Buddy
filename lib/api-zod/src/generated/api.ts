@@ -161,17 +161,15 @@ export const GetTeamLeaderboardResponse = zod.object({
  * @summary Create a Mercado Pago preapproval subscription for team creation
  */
 export const CreatePaymentBody = zod.object({
-  "plan": zod.enum(["team", "company"]),
-  "cardTokenId": zod.string().min(1),
-  "payerEmail": zod.string().email()
+  "plan": zod.enum(["team", "company"])
 })
 
 export const CreatePaymentResponse = zod.object({
   "paymentToken": zod.string(),
   "plan": zod.string(),
   "amountArs": zod.number(),
-  "status": zod.enum(["approved", "pending"]),
-  "checkoutUrl": zod.string().nullish()
+  "status": zod.enum(["pending"]),
+  "checkoutUrl": zod.string().nullable()
 })
 
 
