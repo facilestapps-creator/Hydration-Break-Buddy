@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import Home from "./pages/Home";
 import { ModeSelection } from "./components/ModeSelection";
 import { TeamOnboarding } from "./components/TeamOnboarding";
+import { SetupConfig } from "./components/SetupConfig";
 import { useLocalStorage } from "./hooks/use-local-storage";
 
 const queryClient = new QueryClient();
@@ -15,6 +16,8 @@ function AppShell() {
   const [mode, setMode] = useLocalStorage<AppMode>("bb-mode", null);
   const [userId, setUserId] = useLocalStorage<number | null>("bb-userId-num", null);
   const [teamId, setTeamId] = useLocalStorage<number | null>("bb-teamId-num", null);
+  // configPending: true means show SetupConfig before starting the timer
+  const [configPending, setConfigPending] = useState(false);
 
   // Read legacy userId if set as string
   const storedUserId = userId ?? (() => {
@@ -25,6 +28,7 @@ function AppShell() {
   const handleModeSelect = (selected: "solo" | "team") => {
     if (selected === "solo") {
       setMode("solo");
+      setConfigPending(true);
     } else {
       setMode("team");
     }
@@ -34,6 +38,7 @@ function AppShell() {
     setUserId(uid);
     setTeamId(tid);
     setMode("team");
+    setConfigPending(true);
   };
 
   const handleBack = () => {
@@ -55,6 +60,14 @@ function AppShell() {
         onComplete={handleTeamComplete}
         onBack={handleBack}
       />
+    );
+  }
+
+  if (configPending) {
+    return (
+      <AnimatePresence mode="wait">
+        <SetupConfig key="setup-config" onStart={() => setConfigPending(false)} />
+      </AnimatePresence>
     );
   }
 

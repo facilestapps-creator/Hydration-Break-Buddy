@@ -97,6 +97,11 @@ const resources = {
         done: "Done!",
         watchVideo: "Watch Exercise Video",
       },
+      setup: {
+        title: "Set Up Your Breaks",
+        subtitle: "Choose your work interval and which breaks to enable.",
+        start: "Let's Go!",
+      },
       settings: {
         title: "Settings",
         interval: "Work Interval",
@@ -196,6 +201,11 @@ const resources = {
         eye: { title: "Descanso Visual", desc: "Dale un descanso a tus ojos con un breve ejercicio para reducir la fatiga visual." },
         done: "¡Listo!",
         watchVideo: "Ver Ejercicio en YouTube",
+      },
+      setup: {
+        title: "Configurá tus Descansos",
+        subtitle: "Elegí tu intervalo de trabajo y qué descansos activar.",
+        start: "¡Empezar!",
       },
       settings: {
         title: "Ajustes",
@@ -297,6 +307,11 @@ const resources = {
         done: "Pronto!",
         watchVideo: "Ver Exercício no YouTube",
       },
+      setup: {
+        title: "Configure suas Pausas",
+        subtitle: "Escolha o intervalo de trabalho e quais pausas ativar.",
+        start: "Vamos lá!",
+      },
       settings: {
         title: "Configurações",
         interval: "Intervalo de Trabalho",
@@ -396,6 +411,11 @@ const resources = {
         eye: { title: "Repos Visuel", desc: "Reposez vos yeux avec un exercice rapide pour réduire la fatigue visuelle." },
         done: "Fait !",
         watchVideo: "Voir l'Exercice sur YouTube",
+      },
+      setup: {
+        title: "Configurez vos Pauses",
+        subtitle: "Choisissez votre intervalle de travail et les pauses à activer.",
+        start: "C'est parti !",
       },
       settings: {
         title: "Paramètres",
@@ -497,6 +517,11 @@ const resources = {
         done: "Fertig!",
         watchVideo: "Übung auf YouTube ansehen",
       },
+      setup: {
+        title: "Pausen einrichten",
+        subtitle: "Wähle dein Arbeitsintervall und welche Pausen du aktivieren möchtest.",
+        start: "Los geht's!",
+      },
       settings: {
         title: "Einstellungen",
         interval: "Arbeitsintervall",
@@ -596,6 +621,11 @@ const resources = {
         eye: { title: "Riposo Visivo", desc: "Riposati gli occhi con un breve esercizio per ridurre l'affaticamento visivo." },
         done: "Fatto!",
         watchVideo: "Guarda l'Esercizio su YouTube",
+      },
+      setup: {
+        title: "Configura le tue Pause",
+        subtitle: "Scegli il tuo intervallo di lavoro e le pause da attivare.",
+        start: "Iniziamo!",
       },
       settings: {
         title: "Impostazioni",
@@ -697,6 +727,11 @@ const resources = {
         done: "Klaar!",
         watchVideo: "Bekijk Oefening op YouTube",
       },
+      setup: {
+        title: "Pauzes instellen",
+        subtitle: "Kies je werkinterval en welke pauzes je wilt activeren.",
+        start: "Aan de slag!",
+      },
       settings: {
         title: "Instellingen",
         interval: "Werkinterval",
@@ -796,6 +831,11 @@ const resources = {
         eye: { title: "眼部休息", desc: "用简短的眼部练习让双眼休息，预防视疲劳。" },
         done: "完成！",
         watchVideo: "在 YouTube 上观看练习",
+      },
+      setup: {
+        title: "配置你的休息",
+        subtitle: "选择工作间隔和要启用的休息类型。",
+        start: "开始！",
       },
       settings: {
         title: "设置",
@@ -897,6 +937,11 @@ const resources = {
         done: "完了！",
         watchVideo: "YouTube でエクササイズを見る",
       },
+      setup: {
+        title: "休憩を設定する",
+        subtitle: "作業インターバルと有効にする休憩を選びましょう。",
+        start: "はじめよう！",
+      },
       settings: {
         title: "設定",
         interval: "作業インターバル",
@@ -996,6 +1041,11 @@ const resources = {
         eye: { title: "눈 휴식", desc: "짧은 눈 운동으로 눈의 피로를 풀어보세요." },
         done: "완료!",
         watchVideo: "YouTube에서 운동 보기",
+      },
+      setup: {
+        title: "휴식 설정하기",
+        subtitle: "작업 간격과 활성화할 휴식을 선택하세요.",
+        start: "시작하기!",
       },
       settings: {
         title: "설정",
@@ -1097,6 +1147,11 @@ const resources = {
         done: "تم!",
         watchVideo: "شاهد التمرين على يوتيوب",
       },
+      setup: {
+        title: "ضبط استراحاتك",
+        subtitle: "اختر فترة العمل والاستراحات التي تريد تفعيلها.",
+        start: "هيا نبدأ!",
+      },
       settings: {
         title: "الإعدادات",
         interval: "فترة العمل",
@@ -1196,6 +1251,11 @@ const resources = {
         eye: { title: "आंखों का आराम", desc: "एक छोटे व्यायाम से अपनी आंखों को आराम दें और थकान से बचाएं।" },
         done: "हो गया!",
         watchVideo: "YouTube पर व्यायाम देखें",
+      },
+      setup: {
+        title: "अपने ब्रेक सेट करें",
+        subtitle: "काम का अंतराल और कौन से ब्रेक सक्रिय करने हैं, चुनें।",
+        start: "शुरू करें!",
       },
       settings: {
         title: "सेटिंग्स",
