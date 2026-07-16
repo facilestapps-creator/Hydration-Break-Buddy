@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ZbuaRqorpEWf36KCSYb6u"
+uri = "file://break-buddy-source.zip"
+type = "unspecified"
+title = "Break Buddy — Código Fuente Completo"
