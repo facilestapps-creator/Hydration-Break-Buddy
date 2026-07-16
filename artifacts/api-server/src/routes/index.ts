@@ -6,6 +6,7 @@ import breaksRouter from "./breaks";
 import paymentsRouter from "./payments";
 import webhooksRouter from "./webhooks";
 import configRouter from "./config";
+import devRouter from "./dev";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,8 @@ router.use(teamsRouter);
 router.use(breaksRouter);
 router.use(paymentsRouter);
 router.use(webhooksRouter);
+if (process.env.NODE_ENV !== "production") {
+  router.use(devRouter);
+}
 
 export default router;

@@ -445,6 +445,38 @@ export function TeamOnboarding({
                 )}
               </Button>
 
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  className="w-full text-xs text-amber-600 border border-dashed border-amber-400 rounded-xl py-2 px-4 bg-amber-50 hover:bg-amber-100 transition-colors font-mono"
+                  onClick={() => {
+                    setError("");
+                    createPayment.mutate(
+                      { data: { plan: selectedPlan } },
+                      {
+                        onSuccess: async (result) => {
+                          window.localStorage.setItem("bb-pending-payment", result.paymentToken);
+                          window.localStorage.setItem("bb-pending-plan", selectedPlan);
+                          setPendingToken(result.paymentToken);
+                          // Approve the payment immediately via the dev endpoint
+                          await fetch("/api/dev/approve-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({ token: result.paymentToken }),
+                          });
+                          setStep("pay-pending");
+                        },
+                        onError: () => setError("Dev simulate failed"),
+                      }
+                    );
+                  }}
+                  disabled={createPayment.isPending}
+                >
+                  ⚡ DEV: Simulate payment approved
+                </button>
+              )}
+
               <p className="text-xs text-muted-foreground text-center font-medium">
                 {t("onboarding.payment.secureNote")}
               </p>
