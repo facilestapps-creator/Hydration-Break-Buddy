@@ -817,3 +817,65 @@ export const useLogBreak = <TError = ErrorType<void>,
       return useMutation(getLogBreakMutationOptions(options));
     }
 
+import type { UpdateTeamLogoInput, UpdateTeamLogoResponse } from './api.schemas';
+
+// ── Team Logo ────────────────────────────────────────────────────────────────
+
+export const patchTeamLogo = async (
+  teamId: number,
+  data: UpdateTeamLogoInput,
+  options?: SecondParameter<typeof customFetch>,
+): Promise<UpdateTeamLogoResponse> => {
+  return customFetch<UpdateTeamLogoResponse>(`/api/teams/${teamId}/logo`, {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(options as RequestInit | undefined)?.headers },
+    body: JSON.stringify(data),
+  });
+};
+
+export const getPatchTeamLogoMutationOptions = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof patchTeamLogo>>,
+      TError,
+      { teamId: number; data: UpdateTeamLogoInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof patchTeamLogo>>,
+    { teamId: number; data: UpdateTeamLogoInput }
+  > = (props) => {
+    const { teamId, data } = props;
+    return patchTeamLogo(teamId, data, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PatchTeamLogoMutationResult = NonNullable<Awaited<ReturnType<typeof patchTeamLogo>>>;
+export type PatchTeamLogoMutationBody = UpdateTeamLogoInput;
+export type PatchTeamLogoMutationError = ErrorType<void>;
+
+export const usePatchTeamLogo = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof patchTeamLogo>>,
+      TError,
+      { teamId: number; data: UpdateTeamLogoInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseMutationResult<
+  Awaited<ReturnType<typeof patchTeamLogo>>,
+  TError,
+  { teamId: number; data: UpdateTeamLogoInput },
+  TContext
+> => {
+  return useMutation(getPatchTeamLogoMutationOptions(options));
+};
+

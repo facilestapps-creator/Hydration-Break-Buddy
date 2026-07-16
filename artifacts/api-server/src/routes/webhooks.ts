@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, paymentsTable } from "@workspace/db";
+import { db, paymentsTable, teamsTable } from "@workspace/db";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createHmac } from "crypto";
 
@@ -9,8 +9,7 @@ const router: IRouter = Router();
 router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
   const secret = process.env.MP_WEBHOOK_SECRET;
 
-  // Fail closed in production: if no secret is configured, we cannot verify
-  // the payload authenticity — reject silently rather than process unverified data.
+  // Fail closed in production: if no secret is configured, we cannot verify payload
   if (process.env.NODE_ENV === "production" && !secret) {
     res.status(200).json({ received: false, reason: "webhook secret not configured" });
     return;
@@ -28,7 +27,126 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
       topic?: string;
     };
 
-    // Support both new format { type, data.id } and old IPN format { topic, id }
+    // Determine event ID (used for HMAC and routing)
+    const eventId = body.data?.id
+      ? String(body.data.id)
+      : body.id
+      ? String(body.id)
+      : undefined;
+
+    if (!eventId) return;
+
+    // HMAC signature verification when headers are present
+    const xSignature = req.headers["x-signature"] as string | undefined;
+    const xRequestId = req.headers["x-request-id"] as string | undefined;
+
+    if (xSignature && xRequestId && secret) {
+      const parts: Record<string, string> = {};
+      for (const part of xSignature.split(",")) {
+        const eqIdx = part.indexOf("=");
+        if (eqIdx === -1) continue;
+        const k = part.slice(0, eqIdx).trim();
+        const v = part.slice(eqIdx + 1).trim();
+        if (k && v) parts[k] = v;
+      }
+      const v1 = parts["v1"];
+      if (!v1) return;
+
+      const template = `id:${eventId};request-date:${xRequestId};`;
+      const expected = createHmac("sha256", secret).update(template).digest("hex");
+      if (v1 !== expected) return; // Bad signature — silently drop
+    }
+
+    // ── Route by event type ──────────────────────────────────────────────
+
+    const eventType = body.type ?? body.topic;
+
+    // ── Subscription preapproval status change ──
+    if (eventType === "subscription_preapproval") {
+      const preapprovalId = eventId;
+
+      const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+        headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+      });
+      if (!mpRes.ok) return;
+
+      const preapproval = await mpRes.json() as {
+        id: string;
+        status: string;
+        external_reference?: string;
+      };
+
+      // Update payment record if we have the external_reference (our paymentToken)
+      if (preapproval.external_reference) {
+        if (preapproval.status === "authorized") {
+          await db
+            .update(paymentsTable)
+            .set({ status: "approved", mpPreapprovalId: preapprovalId, updatedAt: new Date() })
+            .where(eq(paymentsTable.paymentToken, preapproval.external_reference));
+        }
+      }
+
+      // Update team subscription status (if team already exists with this preapprovalId)
+      const newSubStatus =
+        preapproval.status === "authorized" ? "active"
+        : preapproval.status === "paused" ? "paused"
+        : preapproval.status === "cancelled" ? "cancelled"
+        : null;
+
+      if (newSubStatus) {
+        const updateData: Record<string, unknown> = { subscriptionStatus: newSubStatus };
+        if (newSubStatus === "active") {
+          const periodEnd = new Date();
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+          updateData.currentPeriodEnd = periodEnd;
+        }
+        await db
+          .update(teamsTable)
+          .set(updateData)
+          .where(eq(teamsTable.mpPreapprovalId, preapprovalId));
+      }
+
+      return;
+    }
+
+    // ── Subscription authorized payment (monthly renewal) ──
+    if (eventType === "subscription_authorized_payment") {
+      const authorizedPaymentId = eventId;
+
+      // Fetch authorized payment details to get preapproval_id
+      const mpRes = await fetch(
+        `https://api.mercadopago.com/preapproval_payment/${authorizedPaymentId}`,
+        { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
+      );
+      if (!mpRes.ok) {
+        console.error("[webhook] Could not fetch preapproval_payment:", authorizedPaymentId);
+        return;
+      }
+
+      const authorizedPayment = await mpRes.json() as {
+        id: string;
+        preapproval_id?: string;
+        status: string;
+        date_approved?: string;
+      };
+
+      if (authorizedPayment.preapproval_id && authorizedPayment.status === "processed") {
+        const baseDate = authorizedPayment.date_approved
+          ? new Date(authorizedPayment.date_approved)
+          : new Date();
+        const periodEnd = new Date(baseDate);
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+        await db
+          .update(teamsTable)
+          .set({ subscriptionStatus: "active", currentPeriodEnd: periodEnd })
+          .where(eq(teamsTable.mpPreapprovalId, authorizedPayment.preapproval_id));
+      }
+
+      return;
+    }
+
+    // ── One-time payment (legacy / IPN) ──
     let mpPaymentId: string | undefined;
     if ((body.type === "payment" || body.action?.startsWith("payment")) && body.data?.id) {
       mpPaymentId = String(body.data.id);
@@ -36,43 +154,9 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
       mpPaymentId = String(body.id);
     }
 
-    if (!mpPaymentId) {
-      return;
-    }
+    if (!mpPaymentId) return;
 
-    // Verify HMAC signature when MP sends one (dashboard-registered webhooks).
-    // IPN notifications (sent via notification_url in preference) do NOT include
-    // x-signature / x-request-id — they are validated by fetching from the MP API below.
-    const xSignature = req.headers["x-signature"] as string | undefined;
-    const xRequestId = req.headers["x-request-id"] as string | undefined;
-
-    if (xSignature && xRequestId) {
-      // Headers present — signature verification is mandatory if we have a secret
-      if (secret) {
-        const parts: Record<string, string> = {};
-        for (const part of xSignature.split(",")) {
-          const eqIdx = part.indexOf("=");
-          if (eqIdx === -1) continue;
-          const k = part.slice(0, eqIdx).trim();
-          const v = part.slice(eqIdx + 1).trim();
-          if (k && v) parts[k] = v;
-        }
-        const v1 = parts["v1"];
-        if (!v1) return; // Malformed signature header
-
-        // MP's manifest format: id:{data.id};request-date:{x-request-id};
-        const template = `id:${mpPaymentId};request-date:${xRequestId};`;
-        const expected = createHmac("sha256", secret).update(template).digest("hex");
-        if (v1 !== expected) return; // Bad signature — silently drop
-      }
-      // If no secret configured in development, allow through (real MP details verified below)
-    }
-    // If no signature headers: IPN mode — proceed; MP API call below confirms legitimacy
-
-    // Fetch full payment details from MP API
-    const mpClient = new MercadoPagoConfig({
-      accessToken: process.env.MP_ACCESS_TOKEN!,
-    });
+    const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
     const paymentApi = new Payment(mpClient);
     const mpPayment = await paymentApi.get({ id: mpPaymentId });
 
@@ -86,14 +170,10 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
 
     await db
       .update(paymentsTable)
-      .set({
-        status: normalizedStatus,
-        mpPaymentId,
-        updatedAt: new Date(),
-      })
+      .set({ status: normalizedStatus, mpPaymentId, updatedAt: new Date() })
       .where(eq(paymentsTable.paymentToken, externalRef));
+
   } catch (err) {
-    // Already responded 200; log error for debugging without triggering MP retry storm
     console.error("[webhook] processing error:", err);
   }
 });

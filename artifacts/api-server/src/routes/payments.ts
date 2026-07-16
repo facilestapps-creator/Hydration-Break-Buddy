@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable, paymentsTable } from "@workspace/db";
-import { MercadoPagoConfig, Preference } from "mercadopago";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../middlewares/auth";
 import { strictLimiter } from "../lib/rate-limiters";
@@ -14,15 +13,14 @@ function getPublicDomain(): string {
   return process.env.REPLIT_DEV_DOMAIN ?? "localhost";
 }
 
-function getMPClient() {
-  return new MercadoPagoConfig({
-    accessToken: process.env.MP_ACCESS_TOKEN!,
-    options: { timeout: 8000 },
-  });
-}
-
 router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Promise<void> => {
-  const userId = req.userId; // set by requireAuth middleware
+  const userId = req.userId;
+
+  const { plan } = req.body as { plan?: unknown };
+  if (plan !== "team" && plan !== "company") {
+    res.status(400).json({ error: "plan must be 'team' or 'company'" });
+    return;
+  }
 
   const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
@@ -30,48 +28,57 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
     return;
   }
 
-  const paymentToken = randomUUID();
-  const amountArs = parseInt(process.env.MP_PRICE_ARS ?? "5500", 10);
-  const domain = getPublicDomain();
-  const frontendBase = `https://${domain}`;   // app lives at root (BASE_PATH="/")
-  const apiBase = `https://${domain}/api`;
+  const planId =
+    plan === "company"
+      ? process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY!
+      : process.env.MP_PREAPPROVAL_PLAN_ID_TEAM!;
 
-  const preference = new Preference(getMPClient());
-  const result = await preference.create({
-    body: {
-      items: [
-        {
-          id: "break-buddy-team",
-          title: "Break Buddy — Crear Equipo",
-          description: "Acceso único para crear un equipo en Break Buddy",
-          quantity: 1,
-          unit_price: amountArs,
-          currency_id: "ARS",
-        },
-      ],
-      external_reference: paymentToken,
-      back_urls: {
-        success: `${frontendBase}/?bb_payment=success&token=${paymentToken}`,
-        failure: `${frontendBase}/?bb_payment=failure&token=${paymentToken}`,
-        pending: `${frontendBase}/?bb_payment=pending&token=${paymentToken}`,
-      },
-      auto_return: "approved",
-      notification_url: `${apiBase}/webhooks/mercadopago`,
+  if (!planId) {
+    res.status(500).json({ error: "Subscription plan not configured" });
+    return;
+  }
+
+  const paymentToken = randomUUID();
+  const domain = getPublicDomain();
+  const frontendBase = `https://${domain}`;
+
+  // Create subscription via MP PreApproval API
+  const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      preapproval_plan_id: planId,
+      external_reference: paymentToken,
+      back_url: `${frontendBase}/?bb_payment=success&token=${paymentToken}`,
+    }),
   });
+
+  if (!mpRes.ok) {
+    const errorText = await mpRes.text();
+    console.error("[payments] MP preapproval creation failed:", errorText);
+    res.status(502).json({ error: "Could not create subscription with Mercado Pago" });
+    return;
+  }
+
+  const mpData = await mpRes.json() as { id: string; init_point: string; status?: string };
 
   await db.insert(paymentsTable).values({
     paymentToken,
-    mpPreferenceId: result.id!,
+    mpPreapprovalId: mpData.id,
     userId,
     status: "pending",
-    amountArs,
+    plan,
+    amountArs: 0, // price is defined in the MP plan
   });
 
   res.status(201).json({
     paymentToken,
-    checkoutUrl: result.init_point!,
-    amountArs,
+    checkoutUrl: mpData.init_point,
+    plan,
+    amountArs: 0,
   });
 });
 
@@ -94,40 +101,40 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
 
   const payment = rows[0];
 
-  // Fallback: if still pending, query MP directly in case the webhook never arrived
-  if (payment.status === "pending") {
+  // Fallback: if still pending, query MP directly (subscription preapproval)
+  if (payment.status === "pending" && payment.mpPreapprovalId) {
     try {
       const mpRes = await fetch(
-        `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(token)}&sort=date_created&criteria=desc&limit=1`,
+        `https://api.mercadopago.com/preapproval/${payment.mpPreapprovalId}`,
         { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
       );
       if (mpRes.ok) {
-        const data = await mpRes.json() as { results?: Array<{ id: number; status: string }> };
-        const mpPayment = data.results?.[0];
-        if (mpPayment) {
-          const newStatus =
-            mpPayment.status === "approved" ? "approved" :
-            mpPayment.status === "rejected" ? "rejected" :
-            mpPayment.status === "cancelled" ? "cancelled" : null;
-          if (newStatus && newStatus !== "pending") {
-            await db
-              .update(paymentsTable)
-              .set({ status: newStatus, mpPaymentId: String(mpPayment.id), updatedAt: new Date() })
-              .where(eq(paymentsTable.paymentToken, token));
-            res.json({ paymentToken: token, status: newStatus, mpPaymentId: String(mpPayment.id) });
-            return;
-          }
+        const data = await mpRes.json() as { id: string; status: string };
+        if (data.status === "authorized") {
+          await db
+            .update(paymentsTable)
+            .set({ status: "approved", updatedAt: new Date() })
+            .where(eq(paymentsTable.paymentToken, token));
+          res.json({ paymentToken: token, status: "approved", mpPaymentId: payment.mpPreapprovalId });
+          return;
+        } else if (data.status === "cancelled") {
+          await db
+            .update(paymentsTable)
+            .set({ status: "cancelled", updatedAt: new Date() })
+            .where(eq(paymentsTable.paymentToken, token));
+          res.json({ paymentToken: token, status: "cancelled", mpPaymentId: null });
+          return;
         }
       }
     } catch (err) {
-      console.error("[status] MP fallback check failed:", err);
+      console.error("[status] MP preapproval fallback check failed:", err);
     }
   }
 
   res.json({
     paymentToken: payment.paymentToken,
     status: payment.status,
-    mpPaymentId: payment.mpPaymentId ?? null,
+    mpPaymentId: payment.mpPaymentId ?? payment.mpPreapprovalId ?? null,
   });
 });
 

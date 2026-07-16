@@ -1,9 +1,10 @@
 import { Modal } from "./Modal";
 import { useTranslation } from "react-i18next";
-import { useGetTeamLeaderboard, getGetTeamLeaderboardQueryKey, useGetTeam, getGetTeamQueryKey } from "@workspace/api-client-react";
-import { Trophy, Copy, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useGetTeamLeaderboard, getGetTeamLeaderboardQueryKey, useGetTeam, getGetTeamQueryKey, usePatchTeamLogo } from "@workspace/api-client-react";
+import { Trophy, Copy, Check, AlertCircle, Loader2, Image, AlertTriangle, XCircle } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "./Button";
 
 export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean, teamId: number | null, onClose: () => void }) {
   const { t } = useTranslation();
@@ -16,7 +17,7 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
     }
   });
 
-  const { data: team } = useGetTeam(teamId!, {
+  const { data: team, refetch: refetchTeam } = useGetTeam(teamId!, {
     query: {
       enabled: !!teamId && isOpen,
       queryKey: teamId ? getGetTeamQueryKey(teamId) : ["team", null],
@@ -24,6 +25,11 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
   });
 
   const [copied, setCopied] = useState(false);
+  const [logoInput, setLogoInput] = useState("");
+  const [logoSaved, setLogoSaved] = useState(false);
+  const [logoError, setLogoError] = useState("");
+
+  const patchLogo = usePatchTeamLogo();
 
   const copyCode = () => {
     if (team?.inviteCode) {
@@ -33,10 +39,47 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
     }
   };
 
+  const handleSaveLogo = () => {
+    if (!teamId || !logoInput.trim()) return;
+    setLogoError("");
+    setLogoSaved(false);
+    patchLogo.mutate(
+      { teamId, data: { logoUrl: logoInput.trim() } },
+      {
+        onSuccess: () => {
+          setLogoSaved(true);
+          setLogoInput("");
+          refetchTeam();
+          setTimeout(() => setLogoSaved(false), 3000);
+        },
+        onError: (err) => {
+          const msg = (err as { data?: { error?: string } })?.data?.error
+            ?? t("leaderboard.logo.error");
+          setLogoError(msg);
+        },
+      }
+    );
+  };
+
+  const subscriptionBad = team && (team.subscriptionStatus === "paused" || team.subscriptionStatus === "cancelled");
+  const logoUrl = leaderboard?.logoUrl ?? team?.logoUrl;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} showClose={true}>
       <div className="p-6 md:p-8 flex flex-col max-h-[85vh]">
         <div className="text-center mb-6">
+          {/* Team logo */}
+          {logoUrl && (
+            <div className="flex justify-center mb-3">
+              <img
+                src={logoUrl}
+                alt={t("leaderboard.title")}
+                className="h-14 max-w-[200px] object-contain rounded-xl border border-border"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+          )}
+
           <div className="w-16 h-16 bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
             <Trophy className="w-8 h-8 fill-current" />
           </div>
@@ -54,6 +97,31 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
             </div>
           )}
         </div>
+
+        {/* Subscription status banner (paused / cancelled) */}
+        {subscriptionBad && (
+          <div className={cn(
+            "flex items-start gap-3 rounded-2xl px-4 py-3 mb-4 text-sm font-bold border",
+            team.subscriptionStatus === "cancelled"
+              ? "bg-destructive/10 border-destructive/30 text-destructive"
+              : "bg-orange-50 border-orange-200 text-orange-700"
+          )}>
+            <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              {team.subscriptionStatus === "paused"
+                ? t("onboarding.subscriptionStatus.paused")
+                : t("onboarding.subscriptionStatus.cancelled")}
+            </div>
+          </div>
+        )}
+
+        {/* Near member limit banner */}
+        {team?.nearMemberLimit && (
+          <div className="flex items-start gap-3 rounded-2xl px-4 py-3 mb-4 text-sm font-bold border bg-yellow-50 border-yellow-200 text-yellow-800">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{t("leaderboard.nearLimit")}</span>
+          </div>
+        )}
 
         <div className="flex justify-between items-center px-2 mb-4">
           <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{t("leaderboard.rankings")}</span>
@@ -121,6 +189,42 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
             })
           )}
         </div>
+
+        {/* Company plan logo URL input */}
+        {team?.plan === "company" && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <Image className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-bold text-muted-foreground">{t("leaderboard.logo.title")}</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={logoInput}
+                onChange={(e) => { setLogoInput(e.target.value); setLogoError(""); setLogoSaved(false); }}
+                placeholder={t("leaderboard.logo.placeholder")}
+                className="flex-1 px-4 py-2.5 rounded-2xl border-2 border-border bg-background text-foreground text-sm font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!logoInput.trim() || patchLogo.isPending}
+                onClick={handleSaveLogo}
+                className="shrink-0"
+              >
+                {patchLogo.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("leaderboard.logo.save")}
+              </Button>
+            </div>
+            {logoError && (
+              <p className="text-destructive text-xs font-bold mt-1.5">{logoError}</p>
+            )}
+            {logoSaved && (
+              <p className="text-secondary text-xs font-bold mt-1.5 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> {t("leaderboard.logo.success")}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );

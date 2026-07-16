@@ -1,0 +1,90 @@
+Quiero convertir el modelo de pago único actual (Mercado Pago Preference) 
+en un modelo de suscripción mensual con dos planes: "team" y "company". 
+Los planes ya están creados del lado de Mercado Pago (no crear planes 
+nuevos por código). Usar estos IDs reales:
+
+MP_PREAPPROVAL_PLAN_ID_TEAM=789321f71f134264b312ff63636807ea
+MP_PREAPPROVAL_PLAN_ID_COMPANY=a938e76482ec480fa1a7665c8c73bf1e
+
+Agregar estos dos valores como env vars/secrets en el proyecto.
+
+Implementar en este orden:
+
+1. SCHEMA — agregar a la tabla `teams`:
+   - plan: text ("team" | "company"), default "team"
+   - memberLimit: integer, nullable (10 para plan "team", null = ilimitado 
+     para plan "company")
+   - logoUrl: text, nullable (solo aplica a plan "company")
+   - subscriptionStatus: text ("pending" | "active" | "paused" | "cancelled" 
+     | "past_due"), default "pending"
+   - currentPeriodEnd: timestamp with timezone, nullable
+   - mpPreapprovalId: text, nullable (id de la suscripción individual que 
+     devuelve MP al asociar un pagador al plan — distinto del 
+     preapproval_plan_id)
+
+   Validación: al intentar sumar un miembro nuevo a un equipo con 
+   plan="team" y memberLimit=10, si ya hay 10 miembros, devolver 403 con 
+   mensaje: "Este equipo llegó al límite de 10 miembros. Actualizá a plan 
+   empresa para sumar más."
+
+   Aviso de upsell (no bloqueante): cuando el equipo tenga 9 miembros 
+   (memberCount === 9 en plan "team"), el endpoint de estado del equipo 
+   debe incluir un flag `nearMemberLimit: true` para que el frontend 
+   muestre un banner: "Estás por llegar al límite de tu plan — pasate a 
+   Empresa para sumar miembros ilimitados", con botón que lleve al checkout 
+   del plan empresa.
+
+2. FLUJO DE CREACIÓN DE EQUIPO — reemplazar Preference por PreApproval
+   En artifacts/api-server/src/routes/payments.ts, el endpoint 
+   /payments/create debe:
+   - Recibir además del userId, el plan elegido ("team" | "company").
+   - Crear una suscripción vía POST a /preapproval de Mercado Pago, 
+     enviando el preapproval_plan_id correspondiente (MP_PREAPPROVAL_PLAN_ID_TEAM 
+     o MP_PREAPPROVAL_PLAN_ID_COMPANY según el plan elegido), el payer_email 
+     del usuario, y back_urls apuntando al dominio del frontend (mismo 
+     patrón que usa getPublicDomain() hoy).
+   - Guardar el mpPreapprovalId devuelto y el plan elegido en la tabla 
+     teams (o en una tabla intermedia si el equipo aún no existe en ese 
+     momento — evaluar si conviene crear el registro de team en estado 
+     "pending" antes de redirigir al checkout).
+   - Devolver el init_point de la suscripción al frontend para redirigir 
+     al usuario al checkout.
+
+3. WEBHOOK — procesar eventos de suscripción
+   En artifacts/api-server/src/routes/webhooks.ts, además del tipo "payment" 
+   ya manejado, procesar:
+   - "subscription_preapproval": cuando el status pasa a "authorized", 
+     activar el equipo (subscriptionStatus="active", currentPeriodEnd = 
+     hoy + 1 mes). Cuando pasa a "paused" o "cancelled", actualizar 
+     subscriptionStatus acorde y bloquear la creación de nuevos breaks 
+     para ese equipo (mantener acceso de lectura al historial existente, 
+     no borrar datos).
+   - "subscription_authorized_payment": cada cobro mensual aprobado 
+     extiende currentPeriodEnd +1 mes desde la fecha del cobro.
+   
+   Mantener la verificación HMAC de firma ya implementada, aplicándola 
+   también a estos nuevos tipos de evento.
+
+4. LOGO DE EMPRESA (solo plan "company")
+   En la pantalla de configuración del equipo, si plan="company", mostrar 
+   un campo de texto para pegar una URL de imagen. Guardar en teams.logoUrl. 
+   Validar que la URL termine en .png/.jpg/.jpeg/.webp antes de guardar 
+   (validación de formato del string, no hace falta descargar la imagen). 
+   Mostrar el logo en el header del leaderboard si logoUrl no es null.
+
+5. FRONTEND — TeamOnboarding
+   Agregar selector de plan (Equipo / Empresa) antes del checkout, con 
+   precio y beneficios de cada uno (límite de miembros, logo personalizado). 
+   Mostrar el estado de la suscripción (activa / vencida / cancelada) en 
+   el equipo, con link para reactivar si está cancelada o pausada.
+
+6. TESTING
+   Antes de mover esto a producción, probar el ciclo completo (alta, 
+   primer cobro, cancelación) usando las credenciales de test de Mercado 
+   Pago, no con la cuenta real.
+
+No modificar la lógica de puntos/breaks diarios ni el sistema de sesiones 
+de la Fase 1 de seguridad ya implementada. Si la Fase 1 (autenticación por 
+sesión) todavía no está terminada, avisame antes de tocar estos endpoints, 
+porque este cambio depende de que el userId venga de la sesión validada 
+y no del body.

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
-import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle } from "lucide-react";
+import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle, Building2 } from "lucide-react";
 import {
   useCreateUser,
   useCreateTeam,
@@ -10,10 +10,12 @@ import {
   useCreatePayment,
   useGetPaymentStatus,
 } from "@workspace/api-client-react";
+import { cn } from "@/lib/utils";
 
 type Step =
   | "name"
   | "team-choice"
+  | "plan-choice"
   | "payment"
   | "pay-pending"
   | "create-team"
@@ -31,13 +33,11 @@ export function TeamOnboarding({
 }) {
   const { t } = useTranslation();
 
-  // Detect return from Mercado Pago via URL params
   const searchParams = new URLSearchParams(window.location.search);
   const bbPaymentResult = searchParams.get("bb_payment");
   const bbPaymentToken = searchParams.get("token");
 
   const getInitialStep = (): Step => {
-    // success OR pending both go to polling — MP can redirect to pending before the webhook fires
     if ((bbPaymentResult === "success" || bbPaymentResult === "pending") && bbPaymentToken) return "pay-pending";
     if (bbPaymentResult === "failure") return "payment";
     if (initialUserId) return "team-choice";
@@ -53,7 +53,11 @@ export function TeamOnboarding({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  // Payment state
+  // Persist selected plan across MP redirect
+  const [selectedPlan, setSelectedPlan] = useState<"team" | "company">(
+    () => (window.localStorage.getItem("bb-pending-plan") as "team" | "company" | null) ?? "team"
+  );
+
   const [pendingToken, setPendingToken] = useState<string | null>(
     bbPaymentToken ?? window.localStorage.getItem("bb-pending-payment")
   );
@@ -66,7 +70,6 @@ export function TeamOnboarding({
   const joinTeam = useJoinTeam();
   const createPayment = useCreatePayment();
 
-  // Poll payment status when on pay-pending step
   const pollingEnabled = step === "pay-pending" && !!pendingToken;
   const paymentStatus = useGetPaymentStatus(pendingToken ?? "", {
     query: {
@@ -80,7 +83,6 @@ export function TeamOnboarding({
     },
   });
 
-  // Clear URL params after reading them (avoids re-triggering on refresh)
   const cleanedUrlRef = useRef(false);
   useEffect(() => {
     if (!cleanedUrlRef.current && (bbPaymentResult || bbPaymentToken)) {
@@ -92,7 +94,6 @@ export function TeamOnboarding({
     }
   }, []);
 
-  // When payment is approved, advance to create-team form
   useEffect(() => {
     if (step === "pay-pending") {
       const status = paymentStatus.data?.status;
@@ -101,6 +102,7 @@ export function TeamOnboarding({
         setStep("create-team");
       } else if (status === "rejected" || status === "cancelled") {
         window.localStorage.removeItem("bb-pending-payment");
+        window.localStorage.removeItem("bb-pending-plan");
         setPendingToken(null);
         setPaymentFailedMsg(t("onboarding.payPending.failed"));
         setStep("payment");
@@ -108,7 +110,7 @@ export function TeamOnboarding({
     }
   }, [paymentStatus.data?.status, step, t]);
 
-  // ── handlers ────────────────────────────────────────────────────────────
+  // ── handlers ────────────────────────────────────────────────────────────────
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,13 +129,19 @@ export function TeamOnboarding({
     );
   };
 
+  const handleSelectPlan = (plan: "team" | "company") => {
+    setSelectedPlan(plan);
+    setStep("payment");
+  };
+
   const handleInitiatePayment = () => {
     setError("");
     createPayment.mutate(
-      { data: {} },
+      { data: { plan: selectedPlan } },
       {
         onSuccess: (result) => {
           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
+          window.localStorage.setItem("bb-pending-plan", selectedPlan);
           setPendingToken(result.paymentToken);
           window.location.href = result.checkoutUrl;
         },
@@ -152,6 +160,7 @@ export function TeamOnboarding({
         onSuccess: (team) => {
           setPendingToken(null);
           window.localStorage.removeItem("bb-pending-payment");
+          window.localStorage.removeItem("bb-pending-plan");
           setGeneratedTeam({ id: team.id, inviteCode: team.inviteCode });
           setStep("invite-code");
         },
@@ -170,7 +179,10 @@ export function TeamOnboarding({
         onSuccess: (team) => {
           onComplete(userId, team.id);
         },
-        onError: () => setError(t("onboarding.joinTeam.error")),
+        onError: (err) => {
+          const msg = (err as { data?: { error?: string } })?.data?.error ?? t("onboarding.joinTeam.error");
+          setError(msg);
+        },
       }
     );
   };
@@ -183,8 +195,6 @@ export function TeamOnboarding({
     }
   };
 
-  // ── render ───────────────────────────────────────────────────────────────
-
   const payStatus = paymentStatus.data?.status;
   const isApproved = payStatus === "approved";
   const isFailed = payStatus === "rejected" || payStatus === "cancelled";
@@ -196,8 +206,8 @@ export function TeamOnboarding({
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
       >
-        {/* Back buttons */}
-        {step === "name" && (
+        {/* ── Back buttons ─────────────────────────────────────────────────── */}
+        {(step === "name" || step === "team-choice") && (
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-muted-foreground font-bold text-sm mb-6 hover:text-foreground transition-colors cursor-pointer"
@@ -205,17 +215,22 @@ export function TeamOnboarding({
             <ArrowLeft className="w-4 h-4" /> {t("onboarding.backToMode")}
           </button>
         )}
-        {step === "team-choice" && (
+        {step === "plan-choice" && (
           <button
-            onClick={onBack}
+            onClick={() => { setStep("team-choice"); setError(""); }}
             className="flex items-center gap-2 text-muted-foreground font-bold text-sm mb-6 hover:text-foreground transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" /> {t("onboarding.backToMode")}
+            <ArrowLeft className="w-4 h-4" /> {t("onboarding.back")}
           </button>
         )}
         {(step === "payment" || step === "join-team" || step === "create-team") && (
           <button
-            onClick={() => { setStep("team-choice"); setError(""); setPaymentFailedMsg(""); }}
+            onClick={() => {
+              if (step === "payment") setStep("plan-choice");
+              else setStep("team-choice");
+              setError("");
+              setPaymentFailedMsg("");
+            }}
             className="flex items-center gap-2 text-muted-foreground font-bold text-sm mb-6 hover:text-foreground transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" /> {t("onboarding.back")}
@@ -279,7 +294,7 @@ export function TeamOnboarding({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => setStep("payment")}
+                  onClick={() => setStep("plan-choice")}
                   className="flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 border-border hover:border-primary bg-background hover:bg-primary/5 transition-all cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center">
@@ -300,6 +315,57 @@ export function TeamOnboarding({
             </motion.div>
           )}
 
+          {/* ── PLAN CHOICE ── */}
+          {step === "plan-choice" && (
+            <motion.div
+              key="plan-choice"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex flex-col gap-5"
+            >
+              <div className="text-center">
+                <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.planChoice.title")}</h2>
+                <p className="text-muted-foreground font-medium">{t("onboarding.planChoice.subtitle")}</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {/* Team plan */}
+                <button
+                  onClick={() => handleSelectPlan("team")}
+                  className="flex items-center gap-4 p-5 rounded-3xl border-2 border-border hover:border-primary bg-background hover:bg-primary/5 transition-all text-left cursor-pointer group"
+                >
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-primary/15 text-primary flex items-center justify-center group-hover:bg-primary/25 transition-colors">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-black text-foreground text-lg">{t("onboarding.planChoice.team.name")}</div>
+                    <div className="text-sm text-muted-foreground font-medium">{t("onboarding.planChoice.team.members")}</div>
+                  </div>
+                  <ArrowLeft className="w-4 h-4 text-primary rotate-180 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+
+                {/* Company plan */}
+                <button
+                  onClick={() => handleSelectPlan("company")}
+                  className="flex items-center gap-4 p-5 rounded-3xl border-2 border-border hover:border-secondary bg-background hover:bg-secondary/5 transition-all text-left cursor-pointer group"
+                >
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center group-hover:bg-secondary/25 transition-colors">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-foreground text-lg">{t("onboarding.planChoice.company.name")}</span>
+                      <span className="text-xs font-black px-2 py-0.5 bg-secondary/15 text-secondary rounded-full uppercase tracking-wide">PRO</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium">{t("onboarding.planChoice.company.members")}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t("onboarding.planChoice.company.logo")}</div>
+                  </div>
+                  <ArrowLeft className="w-4 h-4 text-secondary rotate-180 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* ── PAYMENT ── */}
           {step === "payment" && (
             <motion.div
@@ -310,11 +376,41 @@ export function TeamOnboarding({
               className="flex flex-col gap-6"
             >
               <div className="text-center">
-                <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className={cn(
+                  "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
+                  selectedPlan === "company" ? "bg-secondary/20 text-secondary" : "bg-primary/20 text-primary"
+                )}>
                   <CreditCard className="w-8 h-8" />
                 </div>
                 <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.payment.title")}</h2>
                 <p className="text-muted-foreground font-medium">{t("onboarding.payment.subtitle")}</p>
+              </div>
+
+              {/* Selected plan badge */}
+              <div className={cn(
+                "flex items-center gap-3 px-5 py-4 rounded-2xl border-2",
+                selectedPlan === "company"
+                  ? "border-secondary/30 bg-secondary/5"
+                  : "border-primary/30 bg-primary/5"
+              )}>
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  selectedPlan === "company" ? "bg-secondary/20 text-secondary" : "bg-primary/20 text-primary"
+                )}>
+                  {selectedPlan === "company" ? <Building2 className="w-5 h-5" /> : <Users className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="font-black text-foreground">
+                    {selectedPlan === "company"
+                      ? t("onboarding.planChoice.company.name")
+                      : t("onboarding.planChoice.team.name")}
+                  </div>
+                  <div className="text-sm text-muted-foreground font-medium">
+                    {selectedPlan === "company"
+                      ? t("onboarding.planChoice.company.members")
+                      : t("onboarding.planChoice.team.members")}
+                  </div>
+                </div>
               </div>
 
               {paymentFailedMsg && (
@@ -327,7 +423,7 @@ export function TeamOnboarding({
               {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
 
               <Button
-                variant="primary"
+                variant={selectedPlan === "company" ? "secondary" : "primary"}
                 size="lg"
                 className="w-full"
                 disabled={createPayment.isPending}
@@ -393,7 +489,7 @@ export function TeamOnboarding({
             </motion.div>
           )}
 
-          {/* ── CREATE TEAM (name form, after payment approved) ── */}
+          {/* ── CREATE TEAM (name form, after subscription activated) ── */}
           {step === "create-team" && (
             <motion.form
               key="create-team"

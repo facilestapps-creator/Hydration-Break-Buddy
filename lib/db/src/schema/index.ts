@@ -7,6 +7,12 @@ export const teamsTable = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   inviteCode: text("invite_code").notNull().unique(),
+  plan: text("plan").notNull().default("team"),                   // "team" | "company"
+  memberLimit: integer("member_limit").default(10),               // null = unlimited (company plan)
+  logoUrl: text("logo_url"),                                      // nullable, company plan only
+  subscriptionStatus: text("subscription_status").notNull().default("active"), // pending | active | paused | cancelled | past_due
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }), // nullable
+  mpPreapprovalId: text("mp_preapproval_id"),                     // subscription ID from MP
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -42,11 +48,13 @@ export type BreakEntry = typeof breakEntriesTable.$inferSelect;
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   paymentToken: text("payment_token").notNull().unique(),   // our UUID, used as external_reference
-  mpPreferenceId: text("mp_preference_id").notNull(),
-  mpPaymentId: text("mp_payment_id"),                       // filled in by webhook
+  mpPreferenceId: text("mp_preference_id"),                 // nullable — used only for one-time preference flow
+  mpPaymentId: text("mp_payment_id"),                       // filled in by webhook (one-time payment)
+  mpPreapprovalId: text("mp_preapproval_id"),               // subscription preapproval ID from MP
   userId: integer("user_id").notNull().references(() => usersTable.id),
   status: text("status").notNull().default("pending"),      // pending | approved | rejected | cancelled
-  amountArs: integer("amount_ars").notNull(),
+  plan: text("plan").notNull().default("team"),             // "team" | "company"
+  amountArs: integer("amount_ars").notNull().default(0),    // 0 for subscription plans (price from MP)
   consumed: boolean("consumed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -47,7 +47,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const userId = req.userId; // set by requireAuth middleware
+  const userId = req.userId;
 
   // Atomically claim the payment token — prevents reuse and enforces user binding
   const claimed = await db
@@ -61,12 +61,20 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
         eq(paymentsTable.consumed, false),
       )
     )
-    .returning({ id: paymentsTable.id });
+    .returning({
+      id: paymentsTable.id,
+      plan: paymentsTable.plan,
+      mpPreapprovalId: paymentsTable.mpPreapprovalId,
+    });
 
   if (claimed.length === 0) {
     res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
     return;
   }
+
+  const paymentPlan = (claimed[0].plan ?? "team") as "team" | "company";
+  const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
+  const memberLimit = paymentPlan === "company" ? null : 10;
 
   // Verify user exists
   const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -85,7 +93,22 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
     attempts++;
   }
 
-  const [team] = await db.insert(teamsTable).values({ name: parsed.data.name, inviteCode }).returning();
+  // Set subscription period: now + 1 month
+  const currentPeriodEnd = new Date();
+  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+  const [team] = await db
+    .insert(teamsTable)
+    .values({
+      name: parsed.data.name,
+      inviteCode,
+      plan: paymentPlan,
+      memberLimit,
+      subscriptionStatus: "active",
+      currentPeriodEnd,
+      mpPreapprovalId,
+    })
+    .returning();
 
   // Add the creator to the team
   await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, userId));
@@ -96,6 +119,10 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
     inviteCode: team.inviteCode,
     createdAt: team.createdAt.toISOString(),
     memberCount: 1,
+    plan: team.plan,
+    subscriptionStatus: team.subscriptionStatus,
+    logoUrl: team.logoUrl ?? null,
+    nearMemberLimit: false,
   }));
 });
 
@@ -113,13 +140,24 @@ router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
   }
 
   const team = teamRows[0];
-  const userId = req.userId; // set by requireAuth middleware
+  const userId = req.userId;
 
   // Verify user exists
   const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (userRows.length === 0) {
     res.status(400).json({ error: "User not found" });
     return;
+  }
+
+  // Check member limit for team plan
+  if (team.plan === "team" && team.memberLimit !== null) {
+    const currentCount = await getTeamMemberCount(team.id);
+    if (currentCount >= team.memberLimit) {
+      res.status(403).json({
+        error: `Este equipo llegó al límite de ${team.memberLimit} miembros. Actualizá a plan empresa para sumar más.`,
+      });
+      return;
+    }
   }
 
   await db.update(usersTable).set({ teamId: team.id }).where(eq(usersTable.id, userId));
@@ -132,6 +170,10 @@ router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
     inviteCode: team.inviteCode,
     createdAt: team.createdAt.toISOString(),
     memberCount,
+    plan: team.plan,
+    subscriptionStatus: team.subscriptionStatus,
+    logoUrl: team.logoUrl ?? null,
+    nearMemberLimit: team.plan === "team" && memberCount === 9,
   }));
 });
 
@@ -153,6 +195,7 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
 
   const team = teamRows[0];
   const memberCount = await getTeamMemberCount(teamId);
+  const nearMemberLimit = team.plan === "team" && team.memberLimit !== null && memberCount === 9;
 
   res.json(GetTeamResponse.parse({
     id: team.id,
@@ -160,7 +203,52 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
     inviteCode: team.inviteCode,
     createdAt: team.createdAt.toISOString(),
     memberCount,
+    plan: team.plan,
+    subscriptionStatus: team.subscriptionStatus,
+    logoUrl: team.logoUrl ?? null,
+    nearMemberLimit,
   }));
+});
+
+router.patch("/teams/:teamId/logo", requireAuth, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.teamId) ? req.params.teamId[0] : req.params.teamId;
+  const teamId = parseInt(raw, 10);
+  if (isNaN(teamId)) {
+    res.status(400).json({ error: "Invalid teamId" });
+    return;
+  }
+
+  const { logoUrl } = req.body as { logoUrl?: string };
+
+  // Validate URL format: must end in a supported image extension
+  if (typeof logoUrl !== "string" || !/\.(png|jpg|jpeg|webp)(\?.*)?$/i.test(logoUrl)) {
+    res.status(400).json({ error: "Invalid logo URL. Must end in .png, .jpg, .jpeg, or .webp" });
+    return;
+  }
+  try { new URL(logoUrl); } catch {
+    res.status(400).json({ error: "Invalid logo URL format" });
+    return;
+  }
+
+  const teamRows = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId));
+  if (teamRows.length === 0) {
+    res.status(404).json({ error: "Team not found" });
+    return;
+  }
+  if (teamRows[0].plan !== "company") {
+    res.status(403).json({ error: "Custom logo is only available on the Company plan" });
+    return;
+  }
+
+  // Verify user is a member of this team
+  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, req.userId));
+  if (userRows.length === 0 || userRows[0].teamId !== teamId) {
+    res.status(403).json({ error: "Not a member of this team" });
+    return;
+  }
+
+  await db.update(teamsTable).set({ logoUrl }).where(eq(teamsTable.id, teamId));
+  res.json({ logoUrl });
 });
 
 router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<void> => {
@@ -184,7 +272,6 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  // Get all members
   const members = await db.select().from(usersTable).where(eq(usersTable.teamId, teamId));
 
   if (members.length === 0) {
@@ -192,6 +279,7 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
       teamId,
       teamName: team.name,
       weekStart: weekStart.toISOString(),
+      logoUrl: team.logoUrl ?? null,
       members: [],
     }));
     return;
@@ -199,7 +287,6 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
 
   const memberIds = members.map(m => m.id);
 
-  // Get all break entries this week for team members
   const weekEntries = await db
     .select()
     .from(breakEntriesTable)
@@ -210,7 +297,6 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
       )
     );
 
-  // Build stats per member
   const memberStats = members.map(member => {
     const userEntries = weekEntries.filter(e => e.userId === member.id);
     const todayEntries = userEntries.filter(e => e.completedAt >= todayStart);
@@ -223,10 +309,8 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
     };
   });
 
-  // Sort by weeklyBreaks descending, then name alphabetically for ties
   memberStats.sort((a, b) => b.weeklyBreaks - a.weeklyBreaks || a.name.localeCompare(b.name));
 
-  // Assign ranks and medals
   const MEDALS: Record<number, string> = { 1: "gold", 2: "silver", 3: "bronze" };
   const ranked = memberStats.map((m, i) => ({
     ...m,
@@ -238,6 +322,7 @@ router.get("/teams/:teamId/leaderboard", requireAuth, async (req, res): Promise<
     teamId,
     teamName: team.name,
     weekStart: weekStart.toISOString(),
+    logoUrl: team.logoUrl ?? null,
     members: ranked,
   }));
 });

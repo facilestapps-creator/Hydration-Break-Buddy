@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, breakEntriesTable } from "@workspace/db";
+import { db, usersTable, breakEntriesTable, teamsTable } from "@workspace/db";
 import { LogBreakBody, LogBreakResponse } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { relaxedLimiter } from "../lib/rate-limiters";
@@ -17,7 +17,7 @@ router.post("/breaks", requireAuth, relaxedLimiter, async (req, res): Promise<vo
   }
 
   const { breakType } = parsed.data;
-  const userId = req.userId; // set by requireAuth middleware
+  const userId = req.userId;
 
   if (!VALID_BREAK_TYPES.includes(breakType as typeof VALID_BREAK_TYPES[number])) {
     res.status(400).json({ error: "Invalid breakType. Must be hydration, walk, or eye" });
@@ -28,6 +28,25 @@ router.post("/breaks", requireAuth, relaxedLimiter, async (req, res): Promise<vo
   if (userRows.length === 0) {
     res.status(400).json({ error: "User not found" });
     return;
+  }
+
+  // Block break logging if team subscription is not active
+  const user = userRows[0];
+  if (user.teamId) {
+    const teamRows = await db
+      .select({ subscriptionStatus: teamsTable.subscriptionStatus })
+      .from(teamsTable)
+      .where(eq(teamsTable.id, user.teamId));
+
+    if (teamRows.length > 0) {
+      const { subscriptionStatus } = teamRows[0];
+      if (subscriptionStatus === "paused" || subscriptionStatus === "cancelled") {
+        res.status(403).json({
+          error: "Team subscription is not active. Breaks cannot be logged until the subscription is renewed.",
+        });
+        return;
+      }
+    }
   }
 
   const [entry] = await db

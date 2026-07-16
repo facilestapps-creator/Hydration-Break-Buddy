@@ -41,6 +41,11 @@ export interface Team {
   inviteCode: string;
   createdAt: string;
   memberCount: number;
+  plan: string;
+  subscriptionStatus: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  nearMemberLimit: boolean;
 }
 
 export interface TeamInput {
@@ -52,13 +57,15 @@ export interface TeamInput {
   paymentToken: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface PaymentCreateInput {}
+export interface PaymentCreateInput {
+  plan: 'team' | 'company';
+}
 
 export interface PaymentCreateResponse {
   paymentToken: string;
   checkoutUrl: string;
   amountArs: number;
+  plan: string;
 }
 
 export interface PaymentStatusResponse {
@@ -86,6 +93,8 @@ export interface Leaderboard {
   teamId: number;
   teamName: string;
   weekStart: string;
+  /** @nullable */
+  logoUrl?: string | null;
   members: LeaderboardMember[];
 }
 
@@ -100,3 +109,10 @@ export interface BreakInput {
   breakType: string;
 }
 
+export interface UpdateTeamLogoInput {
+  logoUrl: string;
+}
+
+export interface UpdateTeamLogoResponse {
+  logoUrl: string;
+}

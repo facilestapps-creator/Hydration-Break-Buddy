@@ -85,7 +85,11 @@ export const CreateTeamResponse = zod.object({
   "name": zod.string(),
   "inviteCode": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number()
+  "memberCount": zod.number(),
+  "plan": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "nearMemberLimit": zod.boolean()
 })
 
 
@@ -101,7 +105,11 @@ export const JoinTeamResponse = zod.object({
   "name": zod.string(),
   "inviteCode": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number()
+  "memberCount": zod.number(),
+  "plan": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "nearMemberLimit": zod.boolean()
 })
 
 
@@ -117,7 +125,11 @@ export const GetTeamResponse = zod.object({
   "name": zod.string(),
   "inviteCode": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number()
+  "memberCount": zod.number(),
+  "plan": zod.string(),
+  "subscriptionStatus": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "nearMemberLimit": zod.boolean()
 })
 
 
@@ -132,6 +144,7 @@ export const GetTeamLeaderboardResponse = zod.object({
   "teamId": zod.number(),
   "teamName": zod.string(),
   "weekStart": zod.string(),
+  "logoUrl": zod.string().nullish(),
   "members": zod.array(zod.object({
   "userId": zod.number(),
   "name": zod.string(),
@@ -145,14 +158,17 @@ export const GetTeamLeaderboardResponse = zod.object({
 
 
 /**
- * @summary Create a Mercado Pago preference for team creation
+ * @summary Create a Mercado Pago preapproval subscription for team creation
  */
-export const CreatePaymentBody = zod.object({})
+export const CreatePaymentBody = zod.object({
+  "plan": zod.enum(["team", "company"])
+})
 
 export const CreatePaymentResponse = zod.object({
   "paymentToken": zod.string(),
   "checkoutUrl": zod.string(),
-  "amountArs": zod.number()
+  "amountArs": zod.number(),
+  "plan": zod.string()
 })
 
 
@@ -183,5 +199,3 @@ export const LogBreakResponse = zod.object({
   "breakType": zod.string(),
   "completedAt": zod.string()
 })
-
-

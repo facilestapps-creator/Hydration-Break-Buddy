@@ -1,2 +1,3 @@
-- [MP Payment Integration](mp-payment-integration.md) — freemium: solo team *creation* is paid ($5,500 ARS one-time via MP Checkout Pro); joining is always free.
+- [MP Payment Integration](mp-payment-integration.md) — NOW SUPERSEDED: switched from one-time Preference to monthly PreApproval subscriptions (two plans: team/company).
+- [Subscription flow — MP PreApproval](subscription-flow.md) — team creation uses MP PreApproval; plan IDs in env vars; webhook handles authorized/paused/cancelled events.
 - [Payment Token Security](payment-token-security.md) — token must be atomically consumed (consumed=true) at team creation, scoped to userId; never just check status=approved.
