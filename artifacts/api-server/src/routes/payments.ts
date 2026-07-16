@@ -75,19 +75,25 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
   const frontendBase = `https://${domain}`;
 
   // ── Call MP POST /preapproval ──────────────────────────────────────────
+  const mpBody = {
+    preapproval_plan_id: planId,
+    card_token_id: cardTokenId,
+    payer_email: payerEmail,
+    external_reference: paymentToken,
+    back_url: `${frontendBase}/?bb_payment=success&token=${paymentToken}`,
+  };
+  console.log("[payments] POST /preapproval body:", JSON.stringify({
+    ...mpBody,
+    card_token_id: cardTokenId.slice(0, 8) + "…",  // truncate for log safety
+  }));
+
   const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
     },
-    body: JSON.stringify({
-      preapproval_plan_id: planId,
-      card_token_id: cardTokenId,
-      payer_email: payerEmail,
-      external_reference: paymentToken,
-      back_url: `${frontendBase}/?bb_payment=success&token=${paymentToken}`,
-    }),
+    body: JSON.stringify(mpBody),
   });
 
   const preapproval = await mpRes.json() as {
@@ -100,7 +106,7 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
   };
 
   if (!mpRes.ok) {
-    console.error("[payments] MP /preapproval error:", JSON.stringify(preapproval));
+    console.error("[payments] MP /preapproval error (HTTP", mpRes.status, "):", JSON.stringify(preapproval));
     res.status(502).json({
       error: "Payment provider error",
       detail: preapproval.message ?? preapproval.error ?? "Unknown MP error",
