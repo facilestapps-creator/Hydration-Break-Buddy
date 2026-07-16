@@ -7,12 +7,24 @@ import { strictLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
 
+const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: number }> = {
+  team: {
+    planId: process.env.MP_PREAPPROVAL_PLAN_ID_TEAM ?? "",
+    amountArs: 5500,
+  },
+  company: {
+    planId: process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY ?? "",
+    amountArs: 14000,
+  },
+};
+
 function getPublicDomain(): string {
   const domains = process.env.REPLIT_DOMAINS;
   if (domains) return domains.split(",")[0].trim();
   return process.env.REPLIT_DEV_DOMAIN ?? "localhost";
 }
 
+// ── Create payment ─────────────────────────────────────────────────────────
 router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Promise<void> => {
   const userId = req.userId;
 
@@ -28,11 +40,7 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
     return;
   }
 
-  const planId =
-    plan === "company"
-      ? process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY!
-      : process.env.MP_PREAPPROVAL_PLAN_ID_TEAM!;
-
+  const { planId, amountArs } = PLAN_CONFIG[plan];
   if (!planId) {
     res.status(500).json({ error: "Subscription plan not configured" });
     return;
@@ -42,46 +50,33 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
   const domain = getPublicDomain();
   const frontendBase = `https://${domain}`;
 
-  // Create subscription via MP PreApproval API
-  const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      preapproval_plan_id: planId,
-      external_reference: paymentToken,
-      back_url: `${frontendBase}/?bb_payment=success&token=${paymentToken}`,
-    }),
-  });
-
-  if (!mpRes.ok) {
-    const errorText = await mpRes.text();
-    console.error("[payments] MP preapproval creation failed:", errorText);
-    res.status(502).json({ error: "Could not create subscription with Mercado Pago" });
-    return;
-  }
-
-  const mpData = await mpRes.json() as { id: string; init_point: string; status?: string };
+  // Build checkout URL directly from the plan's init_point.
+  // MP accepts external_reference and back_url as query params on the checkout URL.
+  const checkoutUrl = [
+    `https://www.mercadopago.com.ar/subscriptions/checkout`,
+    `?preapproval_plan_id=${planId}`,
+    `&external_reference=${paymentToken}`,
+    `&back_url=${encodeURIComponent(`${frontendBase}/?bb_payment=success&token=${paymentToken}`)}`,
+  ].join("");
 
   await db.insert(paymentsTable).values({
     paymentToken,
-    mpPreapprovalId: mpData.id,
     userId,
     status: "pending",
     plan,
-    amountArs: 0, // price is defined in the MP plan
+    amountArs,
+    // mpPreapprovalId will be set later by the subscription_preapproval webhook
   });
 
   res.status(201).json({
     paymentToken,
-    checkoutUrl: mpData.init_point,
+    checkoutUrl,
     plan,
-    amountArs: 0,
+    amountArs,
   });
 });
 
+// ── Poll payment status ────────────────────────────────────────────────────
 router.get("/payments/:token/status", async (req, res): Promise<void> => {
   const { token } = req.params;
   if (!token) {
@@ -101,40 +96,45 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
 
   const payment = rows[0];
 
-  // Fallback: if still pending, query MP directly (subscription preapproval)
-  if (payment.status === "pending" && payment.mpPreapprovalId) {
+  // Fallback: if still pending, search MP by external_reference
+  if (payment.status === "pending") {
     try {
       const mpRes = await fetch(
-        `https://api.mercadopago.com/preapproval/${payment.mpPreapprovalId}`,
+        `https://api.mercadopago.com/preapproval/search?external_reference=${token}&limit=1`,
         { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
       );
       if (mpRes.ok) {
-        const data = await mpRes.json() as { id: string; status: string };
-        if (data.status === "authorized") {
-          await db
-            .update(paymentsTable)
-            .set({ status: "approved", updatedAt: new Date() })
-            .where(eq(paymentsTable.paymentToken, token));
-          res.json({ paymentToken: token, status: "approved", mpPaymentId: payment.mpPreapprovalId });
-          return;
-        } else if (data.status === "cancelled") {
-          await db
-            .update(paymentsTable)
-            .set({ status: "cancelled", updatedAt: new Date() })
-            .where(eq(paymentsTable.paymentToken, token));
-          res.json({ paymentToken: token, status: "cancelled", mpPaymentId: null });
-          return;
+        const data = await mpRes.json() as {
+          results?: Array<{ id: string; status: string }>;
+        };
+        const preapproval = data.results?.[0];
+        if (preapproval) {
+          if (preapproval.status === "authorized") {
+            await db
+              .update(paymentsTable)
+              .set({ status: "approved", mpPreapprovalId: preapproval.id, updatedAt: new Date() })
+              .where(eq(paymentsTable.paymentToken, token));
+            res.json({ paymentToken: token, status: "approved", mpPaymentId: preapproval.id });
+            return;
+          } else if (preapproval.status === "cancelled") {
+            await db
+              .update(paymentsTable)
+              .set({ status: "cancelled", mpPreapprovalId: preapproval.id, updatedAt: new Date() })
+              .where(eq(paymentsTable.paymentToken, token));
+            res.json({ paymentToken: token, status: "cancelled", mpPaymentId: preapproval.id });
+            return;
+          }
         }
       }
-    } catch (err) {
-      console.error("[status] MP preapproval fallback check failed:", err);
+    } catch (e) {
+      console.warn("[payments] MP search fallback failed:", e);
     }
   }
 
   res.json({
-    paymentToken: payment.paymentToken,
+    paymentToken: token,
     status: payment.status,
-    mpPaymentId: payment.mpPaymentId ?? payment.mpPreapprovalId ?? null,
+    mpPaymentId: payment.mpPreapprovalId ?? payment.mpPaymentId ?? null,
   });
 });
 

@@ -173,7 +173,7 @@ router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
     plan: team.plan,
     subscriptionStatus: team.subscriptionStatus,
     logoUrl: team.logoUrl ?? null,
-    nearMemberLimit: team.plan === "team" && memberCount === 9,
+    nearMemberLimit: team.plan === "team" && team.memberLimit !== null && memberCount >= team.memberLimit - 1,
   }));
 });
 
@@ -195,7 +195,7 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
 
   const team = teamRows[0];
   const memberCount = await getTeamMemberCount(teamId);
-  const nearMemberLimit = team.plan === "team" && team.memberLimit !== null && memberCount === 9;
+  const nearMemberLimit = team.plan === "team" && team.memberLimit !== null && memberCount >= team.memberLimit - 1;
 
   res.json(GetTeamResponse.parse({
     id: team.id,
