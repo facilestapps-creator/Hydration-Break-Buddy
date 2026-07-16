@@ -93,6 +93,7 @@ export function MPCardForm({ publicKey, plan, onTokenize, isLoading }: MPCardFor
 
     const initFields = () => {
       try {
+        console.log("[MPCardForm] initFields publicKey prefix:", publicKey.slice(0, 12));
         const mp = new window.MercadoPago(publicKey, { locale: "es-AR" });
 
         // Store mp.fields — createCardToken() lives here, NOT on field instances.
