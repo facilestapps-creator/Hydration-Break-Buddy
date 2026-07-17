@@ -10,6 +10,11 @@ const router: IRouter = Router();
 // MP subscription checkout base URL — plan init_point format
 const MP_SUBSCRIPTION_CHECKOUT = "https://www.mercadopago.com.ar/subscriptions/checkout";
 
+// In sandbox testing we use the test-seller token; in production use the real one.
+function getMpToken(): string {
+  return process.env.MP_ACCESS_TOKEN_TEST_SELLER ?? process.env.MP_ACCESS_TOKEN ?? "";
+}
+
 const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: number }> = {
   team: {
     planId: process.env.MP_PREAPPROVAL_PLAN_ID_TEAM ?? "",
@@ -127,7 +132,7 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
         // We already have the preapproval ID — fetch directly
         const mpRes = await fetch(
           `https://api.mercadopago.com/preapproval/${preapprovalId}`,
-          { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
+          { headers: { Authorization: `Bearer ${getMpToken()}` } }
         );
         if (mpRes.ok) {
           const pa = await mpRes.json() as { id: string; status: string };
@@ -137,7 +142,7 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
         // No ID yet — search by external_reference (set by MP from the checkout URL param)
         const searchRes = await fetch(
           `https://api.mercadopago.com/preapproval/search?external_reference=${encodeURIComponent(token)}&limit=1`,
-          { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
+          { headers: { Authorization: `Bearer ${getMpToken()}` } }
         );
         if (searchRes.ok) {
           const searchData = await searchRes.json() as {

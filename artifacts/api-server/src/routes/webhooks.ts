@@ -6,6 +6,11 @@ import { createHmac } from "crypto";
 
 const router: IRouter = Router();
 
+// In sandbox testing we use the test-seller token; in production use the real one.
+function getMpToken(): string {
+  return process.env.MP_ACCESS_TOKEN_TEST_SELLER ?? process.env.MP_ACCESS_TOKEN ?? "";
+}
+
 router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
   const secret = process.env.MP_WEBHOOK_SECRET;
 
@@ -66,7 +71,7 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
       const preapprovalId = eventId;
 
       const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
-        headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+        headers: { Authorization: `Bearer ${getMpToken()}` },
       });
       if (!mpRes.ok) return;
 
@@ -116,7 +121,7 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
       // Fetch authorized payment details to get preapproval_id
       const mpRes = await fetch(
         `https://api.mercadopago.com/preapproval_payment/${authorizedPaymentId}`,
-        { headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` } }
+        { headers: { Authorization: `Bearer ${getMpToken()}` } }
       );
       if (!mpRes.ok) {
         console.error("[webhook] Could not fetch preapproval_payment:", authorizedPaymentId);
@@ -156,7 +161,7 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
 
     if (!mpPaymentId) return;
 
-    const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
+    const mpClient = new MercadoPagoConfig({ accessToken: getMpToken() });
     const paymentApi = new Payment(mpClient);
     const mpPayment = await paymentApi.get({ id: mpPaymentId });
 
