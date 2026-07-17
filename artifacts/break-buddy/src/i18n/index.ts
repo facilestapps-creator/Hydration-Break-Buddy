@@ -51,6 +51,7 @@ const resources = {
           placeholder: "e.g. Design Dream Team",
           button: "Create Team",
           error: "Could not create team. Try again.",
+          creating: "Creating your team…",
         },
         joinTeam: {
           title: "Enter Invite Code",
@@ -177,6 +178,7 @@ const resources = {
           placeholder: "ej. Los Campeones del Café",
           button: "Crear Equipo",
           error: "No se pudo crear el equipo. Inténtalo de nuevo.",
+          creating: "Creando tu equipo…",
         },
         joinTeam: {
           title: "Ingresar Código",
@@ -303,6 +305,7 @@ const resources = {
           placeholder: "ex: Os Campeões do Café",
           button: "Criar Equipe",
           error: "Não foi possível criar a equipe. Tente novamente.",
+          creating: "Criando sua equipe…",
         },
         joinTeam: {
           title: "Inserir Código",
@@ -408,6 +411,7 @@ const resources = {
           placeholder: "ex: Les Champions du Café",
           button: "Créer l'Équipe",
           error: "Impossible de créer l'équipe. Réessayez.",
+          creating: "Création de votre équipe…",
         },
         joinTeam: {
           title: "Code d'Invitation",
@@ -513,6 +517,7 @@ const resources = {
           placeholder: "z.B. Die Kaffee-Champions",
           button: "Team erstellen",
           error: "Team konnte nicht erstellt werden. Bitte erneut versuchen.",
+          creating: "Team wird erstellt…",
         },
         joinTeam: {
           title: "Einladungscode eingeben",
@@ -618,6 +623,7 @@ const resources = {
           placeholder: "es. I Campioni del Caffè",
           button: "Crea Team",
           error: "Impossibile creare il team. Riprova.",
+          creating: "Creazione del team…",
         },
         joinTeam: {
           title: "Codice Invito",
@@ -723,6 +729,7 @@ const resources = {
           placeholder: "bijv. De Koffiekampioenen",
           button: "Team Aanmaken",
           error: "Team kon niet worden aangemaakt. Probeer opnieuw.",
+          creating: "Team wordt aangemaakt…",
         },
         joinTeam: {
           title: "Uitnodigingscode Invoeren",
@@ -828,6 +835,7 @@ const resources = {
           placeholder: "例如：咖啡冠军队",
           button: "创建团队",
           error: "无法创建团队，请重试。",
+          creating: "正在创建团队…",
         },
         joinTeam: {
           title: "输入邀请码",
@@ -933,6 +941,7 @@ const resources = {
           placeholder: "例：コーヒーチャンピオンズ",
           button: "チームを作る",
           error: "チームを作成できませんでした。もう一度お試しください。",
+          creating: "チームを作成中…",
         },
         joinTeam: {
           title: "招待コードを入力",
@@ -1038,6 +1047,7 @@ const resources = {
           placeholder: "예: 커피 챔피언스",
           button: "팀 만들기",
           error: "팀을 만들 수 없습니다. 다시 시도해주세요.",
+          creating: "팀을 만드는 중…",
         },
         joinTeam: {
           title: "초대 코드 입력",
@@ -1143,6 +1153,7 @@ const resources = {
           placeholder: "مثال: أبطال القهوة",
           button: "إنشاء الفريق",
           error: "تعذر إنشاء الفريق. حاول مجدداً.",
+          creating: "جارٍ إنشاء الفريق…",
         },
         joinTeam: {
           title: "إدخال رمز الدعوة",
@@ -1248,6 +1259,7 @@ const resources = {
           placeholder: "जैसे: चाय के चैम्पियन",
           button: "टीम बनाएं",
           error: "टीम नहीं बन सकी। फिर प्रयास करें।",
+          creating: "टीम बनाई जा रही है…",
         },
         joinTeam: {
           title: "आमंत्रण कोड दर्ज करें",

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 type Step =
   | "name"
   | "team-choice"
+  | "team-name"
   | "plan-choice"
   | "payment"
   | "pay-pending"
@@ -51,7 +52,9 @@ export function TeamOnboarding({
   const [step, setStep] = useState<Step>(getInitialStep);
   const [userId, setUserId] = useState<number | null>(initialUserId);
   const [name, setName] = useState("");
-  const [teamName, setTeamName] = useState("");
+  const [teamName, setTeamName] = useState(
+    () => window.localStorage.getItem("bb-pending-team-name") ?? ""
+  );
   const [inviteCode, setInviteCode] = useState("");
   const [generatedTeam, setGeneratedTeam] = useState<{ id: number; inviteCode: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -134,6 +137,14 @@ export function TeamOnboarding({
     );
   };
 
+  const handleTeamNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamName.trim()) return;
+    setError("");
+    window.localStorage.setItem("bb-pending-team-name", teamName.trim());
+    setStep("plan-choice");
+  };
+
   const handleSelectPlan = (plan: "team" | "company") => {
     setSelectedPlan(plan);
     setStep("payment");
@@ -148,6 +159,7 @@ export function TeamOnboarding({
         onSuccess: (result) => {
           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
           window.localStorage.setItem("bb-pending-plan", selectedPlan);
+          window.localStorage.setItem("bb-pending-team-name", teamName.trim());
           setPendingToken(result.paymentToken);
           if (result.checkoutUrl) {
             window.location.href = result.checkoutUrl;
@@ -164,24 +176,27 @@ export function TeamOnboarding({
     );
   };
 
-  const handleCreateTeam = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamName.trim() || !userId || !pendingToken) return;
+  // Auto-create the team once payment is confirmed — no user input needed at this point.
+  useEffect(() => {
+    if (step !== "create-team") return;
+    if (!userId || !pendingToken || !teamName.trim()) return;
     setError("");
     createTeam.mutate(
-      { data: { name: teamName.trim(), paymentToken: pendingToken! } },
+      { data: { name: teamName.trim(), paymentToken: pendingToken } },
       {
         onSuccess: (team) => {
           setPendingToken(null);
           window.localStorage.removeItem("bb-pending-payment");
           window.localStorage.removeItem("bb-pending-plan");
+          window.localStorage.removeItem("bb-pending-team-name");
           setGeneratedTeam({ id: team.id, inviteCode: team.inviteCode });
           setStep("invite-code");
         },
         onError: () => setError(t("onboarding.createTeam.error")),
       }
     );
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   const handleJoinTeam = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,15 +244,19 @@ export function TeamOnboarding({
             <ArrowLeft className="w-4 h-4" /> {t("onboarding.backToMode")}
           </button>
         )}
-        {step === "plan-choice" && (
+        {(step === "team-name" || step === "plan-choice") && (
           <button
-            onClick={() => { setStep("team-choice"); setError(""); }}
+            onClick={() => {
+              if (step === "team-name") setStep("team-choice");
+              else setStep("team-name");
+              setError("");
+            }}
             className="flex items-center gap-2 text-muted-foreground font-bold text-sm mb-6 hover:text-foreground transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" /> {t("onboarding.back")}
           </button>
         )}
-        {(step === "payment" || step === "join-team" || step === "create-team") && (
+        {(step === "payment" || step === "join-team") && (
           <button
             onClick={() => {
               if (step === "payment") setStep("plan-choice");
@@ -308,7 +327,7 @@ export function TeamOnboarding({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => setStep("plan-choice")}
+                  onClick={() => setStep("team-name")}
                   className="flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 border-border hover:border-primary bg-background hover:bg-primary/5 transition-all cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center">
@@ -327,6 +346,47 @@ export function TeamOnboarding({
                 </button>
               </div>
             </motion.div>
+          )}
+
+          {/* ── TEAM NAME ── */}
+          {step === "team-name" && (
+            <motion.form
+              key="team-name"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              onSubmit={handleTeamNameSubmit}
+              className="flex flex-col gap-6"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.createTeam.title")}</h2>
+                <p className="text-muted-foreground font-medium">{t("onboarding.createTeam.subtitle")}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder={t("onboarding.createTeam.placeholder")}
+                  maxLength={50}
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-border bg-background text-foreground font-bold focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all text-center text-lg"
+                  autoFocus
+                />
+                {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={!teamName.trim()}
+                className="w-full"
+              >
+                {t("onboarding.name.continue")}
+              </Button>
+            </motion.form>
           )}
 
           {/* ── PLAN CHOICE ── */}
@@ -462,6 +522,7 @@ export function TeamOnboarding({
                         onSuccess: async (result) => {
                           window.localStorage.setItem("bb-pending-payment", result.paymentToken);
                           window.localStorage.setItem("bb-pending-plan", selectedPlan);
+                          window.localStorage.setItem("bb-pending-team-name", teamName.trim());
                           setPendingToken(result.paymentToken);
                           // Approve the payment immediately via the dev endpoint
                           await fetch("/api/dev/approve-payment", {
@@ -536,45 +597,39 @@ export function TeamOnboarding({
             </motion.div>
           )}
 
-          {/* ── CREATE TEAM (name form, after subscription activated) ── */}
+          {/* ── CREATE TEAM (auto-creates after payment, no input needed) ── */}
           {step === "create-team" && (
-            <motion.form
+            <motion.div
               key="create-team"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              onSubmit={handleCreateTeam}
-              className="flex flex-col gap-6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex flex-col gap-6 text-center"
             >
-              <div className="text-center">
+              <div>
                 <div className="w-16 h-16 bg-secondary/20 text-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 stroke-[3]" />
+                  {error ? (
+                    <XCircle className="w-8 h-8 text-destructive" />
+                  ) : (
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                  )}
                 </div>
-                <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.createTeam.title")}</h2>
-                <p className="text-muted-foreground font-medium">{t("onboarding.createTeam.subtitle")}</p>
+                <h2 className="text-2xl font-black text-foreground mb-2">
+                  {error ? t("onboarding.createTeam.error") : t("onboarding.createTeam.creating")}
+                </h2>
+                {error && <p className="text-destructive text-sm font-bold mt-2">{error}</p>}
               </div>
-              <div className="flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder={t("onboarding.createTeam.placeholder")}
-                  maxLength={50}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-border bg-background text-foreground font-bold focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all text-center text-lg"
-                  autoFocus
-                />
-                {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
-              </div>
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={!teamName.trim() || createTeam.isPending}
-                className="w-full"
-              >
-                {createTeam.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t("onboarding.createTeam.button")}
-              </Button>
-            </motion.form>
+              {error && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => setStep("create-team")}
+                >
+                  {t("onboarding.payPending.retry")}
+                </Button>
+              )}
+            </motion.div>
           )}
 
           {/* ── JOIN TEAM ── */}
