@@ -31,13 +31,17 @@ app.use(
   }),
 );
 
-// Derive the allowed origin: explicit env var wins, then try REPLIT_DOMAINS,
-// then fall back to null (same-origin requests still work without CORS headers).
-const primaryAllowedOrigin =
-  process.env.ALLOWED_ORIGIN ??
-  (process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}`
-    : null);
+// Build the set of allowed origins from:
+//  1. ALLOWED_ORIGIN env var (comma-separated list, e.g. "https://sipwell.app")
+//  2. REPLIT_DOMAINS env var (comma-separated, added automatically by Replit)
+// Both are included so the app works under a custom domain AND the Replit-assigned URL.
+const allowedOrigins = new Set<string>();
+if (process.env.ALLOWED_ORIGIN) {
+  process.env.ALLOWED_ORIGIN.split(",").map(o => o.trim()).filter(Boolean).forEach(o => allowedOrigins.add(o));
+}
+if (process.env.REPLIT_DOMAINS) {
+  process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean).forEach(d => allowedOrigins.add(`https://${d}`));
+}
 
 app.use(
   cors({
@@ -51,8 +55,8 @@ app.use(
       ) {
         return callback(null, true);
       }
-      // Explicit allowed origin.
-      if (primaryAllowedOrigin && origin === primaryAllowedOrigin) {
+      // Any configured origin (custom domain + Replit domain).
+      if (allowedOrigins.has(origin)) {
         return callback(null, true);
       }
       callback(new Error("Not allowed by CORS"));
