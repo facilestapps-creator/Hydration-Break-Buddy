@@ -1,3 +1,8 @@
 uploads = []
 generated = []
-outputs = []
+
+[[outputs]]
+id = "KLAjYb2pIT70__wA1rtEF"
+uri = "file://break-buddy-project.zip"
+type = "unspecified"
+title = "Break Buddy — código fuente"
