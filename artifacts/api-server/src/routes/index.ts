@@ -6,6 +6,7 @@ import breaksRouter from "./breaks";
 import paymentsRouter from "./payments";
 import webhooksRouter from "./webhooks";
 import configRouter from "./config";
+import feedbackRouter from "./feedback";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -17,6 +18,7 @@ router.use(teamsRouter);
 router.use(breaksRouter);
 router.use(paymentsRouter);
 router.use(webhooksRouter);
+router.use(feedbackRouter);
 if (process.env.NODE_ENV !== "production") {
   router.use(devRouter);
 }

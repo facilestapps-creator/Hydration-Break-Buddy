@@ -7,24 +7,36 @@ export function FeedbackWidget() {
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
     setSending(true);
-    // Small delay to simulate send, then show confirmation
-    await new Promise((r) => setTimeout(r, 600));
-    setSending(false);
-    setSent(true);
-    setTimeout(() => {
-      setSent(false);
-      setText("");
-      setOpen(false);
-    }, 2000);
+    setError("");
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text.trim() }),
+      });
+      if (!res.ok) throw new Error("error");
+      setSent(true);
+      setTimeout(() => {
+        setSent(false);
+        setText("");
+        setOpen(false);
+      }, 2000);
+    } catch {
+      setError("No pudimos enviar tu mensaje. Intentá de nuevo.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+    // invisible: hidden from view but stays in the DOM
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 invisible">
       <AnimatePresence>
         {open && (
           <motion.div
@@ -70,6 +82,9 @@ export function FeedbackWidget() {
                   rows={3}
                   className="w-full px-3 py-2 rounded-xl border-2 border-border bg-background text-foreground text-xs font-medium resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                 />
+                {error && (
+                  <p className="text-xs text-red-500 font-medium">{error}</p>
+                )}
                 <button
                   type="submit"
                   disabled={!text.trim() || sending}
@@ -90,7 +105,7 @@ export function FeedbackWidget() {
       {/* Trigger button */}
       <motion.button
         whileTap={{ scale: 0.93 }}
-        onClick={() => { setOpen((v) => !v); setSent(false); }}
+        onClick={() => { setOpen((v) => !v); setSent(false); setError(""); }}
         className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-primary text-primary-foreground shadow-md text-xs font-black hover:opacity-90 transition-opacity"
       >
         <MessageCircle className="w-3.5 h-3.5" />
