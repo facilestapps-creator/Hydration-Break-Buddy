@@ -31,3 +31,4 @@ MP_PREAPPROVAL_PLAN_ID_TEAM = "1cbeba0be7bd49cc92d3ee343c18a04f"
 
 [userenv.production]
 APP_PUBLIC_URL = "https://sipwell.app"
+ALLOWED_ORIGIN = "https://sipwell.app"
