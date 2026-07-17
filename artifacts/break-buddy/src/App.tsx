@@ -62,7 +62,7 @@ function AppShell() {
     );
   }
 
-  if (mode === "team" && !teamId) {
+  if (effectiveMode === "team" && !teamId) {
     return (
       <TeamOnboarding
         initialUserId={storedUserId}

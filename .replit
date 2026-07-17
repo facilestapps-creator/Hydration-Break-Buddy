@@ -28,3 +28,6 @@ channel = "stable-25_05"
 MP_PRICE_ARS = "5500"
 MP_PREAPPROVAL_PLAN_ID_COMPANY = "d38999bc63124981b04c6a1a2907284b"
 MP_PREAPPROVAL_PLAN_ID_TEAM = "1cbeba0be7bd49cc92d3ee343c18a04f"
+
+[userenv.production]
+APP_PUBLIC_URL = "https://sipwell.app"

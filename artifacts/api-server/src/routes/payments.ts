@@ -26,10 +26,13 @@ const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: numbe
   },
 };
 
-function getPublicDomain(): string {
+function getPublicBaseUrl(): string {
+  // Prefer an explicitly configured production URL (e.g. custom domain).
+  if (process.env.APP_PUBLIC_URL) return process.env.APP_PUBLIC_URL.replace(/\/$/, "");
+  // Fall back to the Replit-managed domain (dev or production subdomain).
   const domains = process.env.REPLIT_DOMAINS;
-  if (domains) return domains.split(",")[0].trim();
-  return process.env.REPLIT_DEV_DOMAIN ?? "localhost";
+  if (domains) return `https://${domains.split(",")[0].trim()}`;
+  return `https://${process.env.REPLIT_DEV_DOMAIN ?? "localhost"}`;
 }
 
 // ── Create subscription — redirect flow ───────────────────────────────────
@@ -71,9 +74,7 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
   }
 
   const paymentToken = randomUUID();
-  const domain = getPublicDomain();
-  const frontendBase = `https://${domain}`;
-  const backUrl = `${frontendBase}/?bb_payment=success&token=${paymentToken}`;
+  const backUrl = `${getPublicBaseUrl()}/?bb_payment=success&token=${paymentToken}`;
 
   // Build MP hosted checkout URL — external_reference and back_url are
   // read by MP's checkout and embedded into the created subscription.
