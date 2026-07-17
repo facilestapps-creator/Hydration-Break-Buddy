@@ -26,6 +26,14 @@ function AppShell() {
     return raw ? Number(raw) : null;
   })();
 
+  // Detect return from Mercado Pago checkout: MP redirects to back_url?preapproval_id=...
+  // We can't embed our token in the back_url (MP strips extra params), so we rely on
+  // localStorage. If preapproval_id is in the URL AND we have a pending payment token
+  // saved, force team mode so TeamOnboarding can restore the pay-pending step.
+  const mpPreapprovalId = new URLSearchParams(window.location.search).get("preapproval_id");
+  const hasPendingPayment = !!window.localStorage.getItem("bb-pending-payment");
+  const effectiveMode: AppMode = (!mode && mpPreapprovalId && hasPendingPayment) ? "team" : mode;
+
   const handleModeSelect = (selected: "solo" | "team") => {
     if (selected === "solo") {
       setMode("solo");
@@ -46,7 +54,7 @@ function AppShell() {
     setMode(null);
   };
 
-  if (!mode) {
+  if (!effectiveMode) {
     return (
       <AnimatePresence mode="wait">
         <ModeSelection key="mode-select" onSelect={handleModeSelect} />

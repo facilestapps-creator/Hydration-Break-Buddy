@@ -1,14 +1,3 @@
 uploads = []
 generated = []
-
-[[outputs]]
-id = "ZbuaRqorpEWf36KCSYb6u"
-uri = "file://break-buddy-source.zip"
-type = "unspecified"
-title = "Break Buddy — Código Fuente Completo"
-
-[[outputs]]
-id = "p3sUdYMrkifX9EDIBFY9x"
-uri = "file://break-buddy-project.zip"
-type = "unspecified"
-title = "Break Buddy — Proyecto completo"
+outputs = []

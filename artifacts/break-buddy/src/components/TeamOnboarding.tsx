@@ -36,10 +36,14 @@ export function TeamOnboarding({
   const searchParams = new URLSearchParams(window.location.search);
   const bbPaymentResult = searchParams.get("bb_payment");
   const bbPaymentToken = searchParams.get("token");
+  // MP redirects back with ?preapproval_id=... (our back_url params are stripped)
+  const mpReturnPreapprovalId = searchParams.get("preapproval_id");
 
   const getInitialStep = (): Step => {
     if ((bbPaymentResult === "success" || bbPaymentResult === "pending") && bbPaymentToken) return "pay-pending";
     if (bbPaymentResult === "failure") return "payment";
+    // Returning from MP checkout: preapproval_id in URL + pending token in storage
+    if (mpReturnPreapprovalId && window.localStorage.getItem("bb-pending-payment")) return "pay-pending";
     if (initialUserId) return "team-choice";
     return "name";
   };
@@ -85,11 +89,12 @@ export function TeamOnboarding({
 
   const cleanedUrlRef = useRef(false);
   useEffect(() => {
-    if (!cleanedUrlRef.current && (bbPaymentResult || bbPaymentToken)) {
+    if (!cleanedUrlRef.current && (bbPaymentResult || bbPaymentToken || mpReturnPreapprovalId)) {
       cleanedUrlRef.current = true;
       const url = new URL(window.location.href);
       url.searchParams.delete("bb_payment");
       url.searchParams.delete("token");
+      url.searchParams.delete("preapproval_id");
       window.history.replaceState({}, "", url.toString());
     }
   }, []);
