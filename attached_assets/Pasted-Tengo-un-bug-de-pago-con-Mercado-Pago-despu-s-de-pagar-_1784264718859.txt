@@ -1,0 +1,36 @@
+Tengo un bug de pago con Mercado Pago: después de pagar la suscripción (con tarjeta de prueba), el usuario no vuelve a la app, o vuelve a una web que no es la nuestra y queda trabado ahí.
+
+DIAGNÓSTICO (confirmado contra la documentación de MP):
+En artifacts/api-server/src/routes/payments.ts armamos la URL de checkout así:
+
+  const checkoutUrl = `${MP_SUBSCRIPTION_CHECKOUT}?preapproval_plan_id=${planId}&external_reference=${paymentToken}&back_url=${encodeURIComponent(backUrl)}`;
+
+El código asume que Mercado Pago lee el back_url de ese query param. Pero para suscripciones (preapproval_plan), el back_url NO es un parámetro de checkout: es un atributo del plan mismo, que se define al crear/actualizar el plan vía POST o PUT https://api.mercadopago.com/preapproval_plan/{id}. El query param &back_url=... que le agregamos hoy es ignorado por MP. Al terminar el pago, MP redirige al back_url que quedó grabado en el plan (MP_PREAPPROVAL_PLAN_ID_TEAM / MP_PREAPPROVAL_PLAN_ID_COMPANY), que probablemente esté vacío o apuntando a otro lado porque esos planes se crearon a mano fuera del repo.
+
+Ya tenemos armado en el frontend un mecanismo de respaldo para detectar el regreso del pago (lee preapproval_id de la URL + bb-pending-payment de localStorage, ver artifacts/break-buddy/src/App.tsx y src/components/TeamOnboarding.tsx), pero nunca llega a ejecutarse porque el navegador no vuelve a nuestro dominio.
+
+LO QUE NECESITO QUE HAGAS:
+
+1. Revisar el back_url actual de cada plan con un GET (no modifica nada), usando el token de MP_ACCESS_TOKEN_TEST_SELLER (o MP_ACCESS_TOKEN si no existe el de test) y los IDs en MP_PREAPPROVAL_PLAN_ID_TEAM y MP_PREAPPROVAL_PLAN_ID_COMPANY:
+
+   curl -s https://api.mercadopago.com/preapproval_plan/{PLAN_ID} \
+     -H "Authorization: Bearer {ACCESS_TOKEN}" | grep back_url
+
+   Mostrame el resultado antes de seguir.
+
+2. Actualizar el back_url de AMBOS planes (team y company) para que apunten al dominio público real de la app. Usá la misma lógica que ya existe en getPublicBaseUrl() en payments.ts (prioriza APP_PUBLIC_URL, si no existe usa REPLIT_DOMAINS) para construir la URL, algo como:
+
+   curl -X PUT https://api.mercadopago.com/preapproval_plan/{PLAN_ID} \
+     -H "Authorization: Bearer {ACCESS_TOKEN}" \
+     -H "Content-Type: application/json" \
+     -d '{"back_url": "https://TU_DOMINIO_REAL/?bb_payment=success"}'
+
+   Hacelo para MP_PREAPPROVAL_PLAN_ID_TEAM y para MP_PREAPPROVAL_PLAN_ID_COMPANY.
+
+3. En artifacts/api-server/src/routes/payments.ts, sacar el &back_url=${encodeURIComponent(backUrl)} del armado de checkoutUrl (ya no hace nada, y deja el código como si funcionara cuando no es así) y actualizar el comentario de arriba que dice "back_url as query params" para reflejar que el back_url se configura a nivel de plan, no por checkout.
+
+4. Confirmarme con un GET a cada plan que el back_url quedó bien seteado.
+
+5. Probar el flujo completo de pago de nuevo con la tarjeta de prueba y confirmar que ahora sí vuelve a la app.
+
+No toques nada más del proyecto, este es un fix acotado solo al flujo de pago.

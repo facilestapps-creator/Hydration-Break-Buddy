@@ -26,29 +26,27 @@ const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: numbe
   },
 };
 
-function getPublicBaseUrl(): string {
-  // Prefer an explicitly configured production URL (e.g. custom domain).
-  if (process.env.APP_PUBLIC_URL) return process.env.APP_PUBLIC_URL.replace(/\/$/, "");
-  // Fall back to the Replit-managed domain (dev or production subdomain).
-  const domains = process.env.REPLIT_DOMAINS;
-  if (domains) return `https://${domains.split(",")[0].trim()}`;
-  return `https://${process.env.REPLIT_DEV_DOMAIN ?? "localhost"}`;
-}
 
 // ── Create subscription — redirect flow ───────────────────────────────────
 //
 // We don't tokenize a card ourselves.  Instead we build a Mercado Pago
 // hosted checkout URL from the plan's init_point, embedding our
-// external_reference and back_url as query params.  The user is sent to
-// MP's page to enter their card; on completion MP embeds external_reference
-// in the subscription and fires a webhook to us.
+// external_reference as a query param.  The user is sent to MP's page to
+// enter their card; on completion MP redirects to the back_url configured
+// on the plan itself (via PUT /preapproval_plan/{id} — NOT a query param).
+//
+// NOTE: back_url is a plan-level attribute, not a checkout query param.
+// MP ignores any &back_url=... appended to the checkout URL for preapproval
+// plans. To change the return URL, update the plan via the MP API.
+// Current back_url on both plans: https://sipwell.app
 //
 // Flow:
-//   1. Build checkoutUrl from plan init_point + params
+//   1. Build checkoutUrl from plan init_point + external_reference
 //   2. Store payment as "pending" in DB
 //   3. Return checkoutUrl — frontend redirects the user there
-//   4. User subscribes on MP's page; MP redirects to back_url
-//   5. Frontend polls GET /payments/:token/status
+//   4. User subscribes on MP's page; MP redirects to plan's back_url
+//   5. Frontend detects ?preapproval_id= in URL + bb-pending-payment in
+//      localStorage, polls GET /payments/:token/status
 //   6. Webhook (subscription_preapproval) also updates status when it fires
 //
 router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Promise<void> => {
@@ -74,11 +72,10 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
   }
 
   const paymentToken = randomUUID();
-  const backUrl = `${getPublicBaseUrl()}/?bb_payment=success&token=${paymentToken}`;
 
-  // Build MP hosted checkout URL — external_reference and back_url are
-  // read by MP's checkout and embedded into the created subscription.
-  const checkoutUrl = `${MP_SUBSCRIPTION_CHECKOUT}?preapproval_plan_id=${planId}&external_reference=${paymentToken}&back_url=${encodeURIComponent(backUrl)}`;
+  // Build MP hosted checkout URL. Only external_reference is embedded here;
+  // back_url is configured at the plan level, not as a query param.
+  const checkoutUrl = `${MP_SUBSCRIPTION_CHECKOUT}?preapproval_plan_id=${planId}&external_reference=${paymentToken}`;
 
   console.log("[payments] checkout URL built:", checkoutUrl);
 
