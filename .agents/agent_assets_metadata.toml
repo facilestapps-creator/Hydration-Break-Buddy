@@ -6,3 +6,9 @@ id = "KLAjYb2pIT70__wA1rtEF"
 uri = "file://break-buddy-project.zip"
 type = "unspecified"
 title = "Break Buddy — código fuente"
+
+[[outputs]]
+id = "UNxyAp73U5L8cOS-RfpBw"
+uri = "file://break-buddy-review.zip"
+type = "unspecified"
+title = "Break Buddy — Revisión completa del código"
