@@ -11,6 +11,32 @@ const app: Express = express();
 // correctly in production (Replit's reverse proxy sets this header).
 app.set("trust proxy", 1);
 
+// ── Canonical domain redirect ────────────────────────────────────────────────
+// If CANONICAL_URL is set (e.g. "https://sipwell.app"), any request that
+// arrives via a *.replit.app host is 307-redirected to the canonical domain
+// with the original path + querystring preserved.
+// 307 is intentional: temporary, not cached by browsers, easy to revert.
+// Localhost and the canonical host itself are never redirected (no loops).
+const canonicalUrl = (process.env.CANONICAL_URL ?? "").replace(/\/$/, "");
+if (canonicalUrl) {
+  const canonicalHost = new URL(canonicalUrl).hostname;
+  app.use((req, res, next) => {
+    const host = (req.headers["x-forwarded-host"] as string | undefined)
+      ?? req.hostname;
+    if (
+      host !== canonicalHost &&
+      host !== "localhost" &&
+      !host.startsWith("localhost:") &&
+      host.endsWith(".replit.app")
+    ) {
+      const target = `${canonicalUrl}${req.originalUrl}`;
+      return res.redirect(307, target);
+    }
+    next();
+  });
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 app.use(
   pinoHttp({
     logger,
