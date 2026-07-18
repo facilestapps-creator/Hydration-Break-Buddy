@@ -133,8 +133,11 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
           { headers: { Authorization: `Bearer ${getMpToken()}` } }
         );
         if (mpRes.ok) {
-          const pa = await mpRes.json() as { id: string; status: string };
+          const pa = await mpRes.json() as { id: string; status: string; [k: string]: unknown };
+          console.log("[payments/status] source=direct token=%s preapprovalId=%s mpRaw=%j", token, preapprovalId, pa);
           preapprovalStatus = pa.status;
+        } else {
+          console.warn("[payments/status] source=direct token=%s preapprovalId=%s mpHttpStatus=%d", token, preapprovalId, mpRes.status);
         }
       } else {
         // No ID yet — search by external_reference (set by MP from the checkout URL param)
@@ -144,13 +147,16 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
         );
         if (searchRes.ok) {
           const searchData = await searchRes.json() as {
-            results?: Array<{ id: string; status: string }>;
+            results?: Array<{ id: string; status: string; [k: string]: unknown }>;
           };
           const found = searchData.results?.[0];
+          console.log("[payments/status] source=search token=%s foundId=%s mpRaw=%j", token, found?.id ?? null, found ?? null);
           if (found) {
             preapprovalId = found.id;
             preapprovalStatus = found.status;
           }
+        } else {
+          console.warn("[payments/status] source=search token=%s mpHttpStatus=%d", token, searchRes.status);
         }
       }
 

@@ -94,6 +94,17 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
         });
 
       if (claimed.length === 0) {
+        // Log the actual DB state of this token so we can diagnose race conditions.
+        const currentState = await tx
+          .select({ status: paymentsTable.status, consumed: paymentsTable.consumed, userId: paymentsTable.userId })
+          .from(paymentsTable)
+          .where(eq(paymentsTable.paymentToken, parsed.data.paymentToken));
+        console.warn(
+          "[teams/create] PAYMENT_NOT_CLAIMABLE token=%s requestingUserId=%s dbState=%j",
+          parsed.data.paymentToken,
+          userId,
+          currentState[0] ?? null,
+        );
         // Throwing inside a transaction causes an automatic rollback.
         throw Object.assign(new Error("PAYMENT_NOT_CLAIMABLE"), { isPaymentError: true });
       }
