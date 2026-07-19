@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface BreakInput {
-  userId: number;
-  breakType: string;
+export interface PaymentCreateInput {
+  plan: string;
 }

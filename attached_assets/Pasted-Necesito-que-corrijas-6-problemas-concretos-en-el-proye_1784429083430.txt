@@ -1,0 +1,35 @@
+Necesito que corrijas 6 problemas concretos en el proyecto, en este orden, y que armes un .zip al final. Instrucciones exactas para cada uno — no tomes decisiones de diseño por tu cuenta: si algo no está cubierto acá o no te queda claro cómo resolverlo, preguntame antes de improvisar. Si en algún paso corrés un chequeo (typecheck, build, etc.) y falla, arreglalo una vez con la causa raíz — no entres en un loop de correr el mismo chequeo una y otra vez sin cambiar nada; si after un par de intentos razonables no se resuelve, parás y me explicás qué encontraste.
+
+1. AGREGAR AL OPENAPI SPEC LOS DOS ENDPOINTS QUE ESTÁN HARDCODEADOS A MANO
+
+En lib/api-client-react/src/generated/api.ts hay código agregado a mano dentro de un archivo que dice "Do not edit manually" (se regenera con Orval desde lib/api-spec/openapi.yaml y se borra con clean:true). Dos cosas quedaron afuera del spec y hay que agregarlas ahí, para después regenerar el cliente:
+
+a) El endpoint de Team Logo (patchTeamLogo / getPatchTeamLogoMutationOptions) — la ruta ya existe en el backend en artifacts/api-server/src/routes/teams.ts, andá a ver cómo está implementada ahí (método HTTP, path, body, response) y documentala en openapi.yaml con esos mismos datos exactos.
+
+b) El parámetro de query mpPreapprovalId (opcional, string) en GET /payments/{token}/status — ya está implementado en el backend en artifacts/api-server/src/routes/payments.ts, agregalo como parámetro opcional de ese endpoint en openapi.yaml.
+
+Después de editar el openapi.yaml, corré el comando de codegen (pnpm --filter @workspace/api-spec run codegen o el que corresponda) para regenerar lib/api-client-react y lib/api-zod desde el spec actualizado. Confirmá que el código regenerado sigue exponiendo useGetPaymentStatus con el parámetro mpPreapprovalId y usePatchTeamLogo (o como se llame la mutation) igual que antes — si el nombre de alguna función cambia al regenerar, actualizá los archivos que la importan (artifacts/break-buddy/src/components/TeamOnboarding.tsx y cualquier otro) para que sigan compilando.
+
+2. CORRER EL TYPECHECK COMPLETO Y CONFIRMAR QUE PASA
+
+Corré pnpm run typecheck desde la raíz. Tiene que terminar sin errores. Este paso depende del paso 1 — si sigue fallando después de aplicar el paso 1, revisá si quedó algo mal migrado al spec, no repitas el comando sin cambiar nada.
+
+3. UNIFICAR getMpToken() EN UN SOLO LUGAR
+
+Hoy existen dos funciones getMpToken() separadas y desincronizadas: una en artifacts/api-server/src/routes/payments.ts (que sí tiene el switch MP_ENV === "production" para usar MP_ACCESS_TOKEN_PROD) y otra en artifacts/api-server/src/routes/webhooks.ts (que quedó vieja, solo usa MP_ACCESS_TOKEN_TEST_SELLER). Esto tiene que quedar en un solo archivo compartido, por ejemplo artifacts/api-server/src/lib/mp-client.ts, exportando una única función getMpToken() con la lógica del switch de producción (la que ya está en payments.ts). Importá esa función desde payments.ts y desde webhooks.ts, y borrá las dos definiciones locales duplicadas. No cambies la lógica del switch, solo movela y reutilizala.
+
+4. ARREGLAR EL BOTÓN "REINTENTAR" ROTO EN LA PANTALLA DE ERROR DE CREACIÓN DE EQUIPO
+
+En artifacts/break-buddy/src/components/TeamOnboarding.tsx, cuando falla la creación del equipo (el useEffect que llama a createTeam.mutate, con el onError que hace setError(t("onboarding.createTeam.error")))), el botón de "Reintentar" que se muestra hace onClick={() => setStep("create-team")}. Como el step ya está en "create-team", este cambio de estado no dispara de nuevo el useEffect (React no re-renderiza con el mismo valor), así que el botón no hace nada.
+
+Arreglalo para que al tocar "Reintentar" se vuelva a intentar la creación del equipo de verdad. La forma más simple: sacá el error del estado (setError(null)) y agregá alguna variable de estado tipo retryCount que se incremente en el onClick del botón, e incluila en las dependencias del useEffect que dispara createTeam.mutate, para que se vuelva a ejecutar. Mantené toda la lógica interna del efecto igual (los datos que manda, el manejo de éxito, etc.), solo arreglá que el retry efectivamente vuelva a dispararlo.
+
+5. TRADUCIR LOS BOTONES NUEVOS DEL BREAK A LOS 12 IDIOMAS
+
+Los botones "Comenzar el break" y "Saltármelo" en artifacts/break-buddy/src/pages/Home.tsx están hardcodeados en español directo en el JSX, sin pasar por el sistema de i18n (a diferencia del botón "¡Listo!" al lado, que sí usa t("breaks.done")).
+
+Agregá dos claves nuevas al namespace de breaks en artifacts/break-buddy/src/i18n/index.ts (por ejemplo breaks.start y breaks.skip), traducidas a los 12 idiomas que ya tiene el archivo (mismo criterio de tono que el resto de las claves de breaks en cada idioma), y reemplazá el texto hardcodeado en Home.tsx por t("breaks.start") y t("breaks.skip").
+
+6. CORREGIR EL TEXTO DEL BOTÓN DE VIDEO EN LOS 12 IDIOMAS
+
+La clave breaks.watchVideo dice explícitamente "en YouTube" / "on YouTube" (o el equivalente) en la mayoría de los 12 idiomas del archivo i18n. Ese botón ya no abre YouTube, abre una búsqueda de Google (ver artifacts/break-buddy/src/lib/breaks.ts, BREAK_SEARCH_URLS). Corregí el texto de esa clave en los 12 idiomas para que ya no mencione YouTube

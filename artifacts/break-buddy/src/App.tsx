@@ -83,7 +83,7 @@ function AppShell() {
 
   return (
     <Home
-      mode={mode}
+      mode={effectiveMode as "solo" | "team"}
       userId={storedUserId}
       teamId={teamId}
     />

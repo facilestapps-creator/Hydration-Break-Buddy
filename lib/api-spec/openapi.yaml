@@ -160,6 +160,37 @@ paths:
         "404":
           description: Not found
 
+  /teams/{teamId}/logo:
+    patch:
+      operationId: patchTeamLogo
+      tags: [teams]
+      summary: Update the team logo URL
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamLogoInput"
+      responses:
+        "200":
+          description: Logo updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateTeamLogoResponse"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Team not found
+
   /teams/{teamId}/leaderboard:
     get:
       operationId: getTeamLeaderboard
@@ -213,6 +244,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: mpPreapprovalId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
       responses:
         "200":
           description: Payment status
@@ -295,7 +332,7 @@ components:
 
     Team:
       type: object
-      required: [id, name, inviteCode, createdAt, memberCount]
+      required: [id, name, inviteCode, createdAt, memberCount, plan, subscriptionStatus, nearMemberLimit]
       properties:
         id:
           type: integer
@@ -307,26 +344,32 @@ components:
           type: string
         memberCount:
           type: integer
+        plan:
+          type: string
+        subscriptionStatus:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        nearMemberLimit:
+          type: boolean
 
     TeamInput:
       type: object
-      required: [name, userId, paymentToken]
+      required: [name, paymentToken]
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 50
-        userId:
-          type: integer
         paymentToken:
           type: string
 
     PaymentCreateInput:
       type: object
-      required: [userId]
+      required: [plan]
       properties:
-        userId:
-          type: integer
+        plan:
+          type: string
 
     PaymentCreateResponse:
       type: object
@@ -352,12 +395,10 @@ components:
 
     TeamJoinInput:
       type: object
-      required: [inviteCode, userId]
+      required: [inviteCode]
       properties:
         inviteCode:
           type: string
-        userId:
-          type: integer
 
     LeaderboardMember:
       type: object
@@ -392,6 +433,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LeaderboardMember"
+        logoUrl:
+          type: ["string", "null"]
+
+    UpdateTeamLogoInput:
+      type: object
+      required: [logoUrl]
+      properties:
+        logoUrl:
+          type: string
+
+    UpdateTeamLogoResponse:
+      type: object
+      required: [logoUrl]
+      properties:
+        logoUrl:
+          type: string
 
     BreakEntry:
       type: object

@@ -3,13 +3,9 @@ import { eq } from "drizzle-orm";
 import { db, paymentsTable, teamsTable } from "@workspace/db";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createHmac } from "crypto";
+import { getMpToken } from "../lib/mp-client";
 
 const router: IRouter = Router();
-
-// In sandbox testing we use the test-seller token; in production use the real one.
-function getMpToken(): string {
-  return process.env.MP_ACCESS_TOKEN_TEST_SELLER ?? process.env.MP_ACCESS_TOKEN ?? "";
-}
 
 router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
   const secret = process.env.MP_WEBHOOK_SECRET;

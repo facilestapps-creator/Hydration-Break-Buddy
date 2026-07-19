@@ -22,6 +22,7 @@ import type {
 import type {
   BreakEntry,
   BreakInput,
+  GetPaymentStatusParams,
   HealthStatus,
   Leaderboard,
   PaymentCreateInput,
@@ -30,6 +31,8 @@ import type {
   Team,
   TeamInput,
   TeamJoinInput,
+  UpdateTeamLogoInput,
+  UpdateTeamLogoResponse,
   User,
   UserInput,
   UserStats
@@ -583,6 +586,78 @@ export function useGetTeam<TData = Awaited<ReturnType<typeof getTeam>>, TError =
 
 
 
+export const getPatchTeamLogoUrl = (teamId: number,) => {
+
+
+
+
+  return `/api/teams/${teamId}/logo`
+}
+
+/**
+ * @summary Update the team logo URL
+ */
+export const patchTeamLogo = async (teamId: number,
+    updateTeamLogoInput: UpdateTeamLogoInput, options?: RequestInit): Promise<UpdateTeamLogoResponse> => {
+
+  return customFetch<UpdateTeamLogoResponse>(getPatchTeamLogoUrl(teamId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTeamLogoInput)
+  }
+);}
+
+
+
+
+
+export const getPatchTeamLogoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchTeamLogo>>, TError,{teamId: number;data: BodyType<UpdateTeamLogoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchTeamLogo>>, TError,{teamId: number;data: BodyType<UpdateTeamLogoInput>}, TContext> => {
+
+const mutationKey = ['patchTeamLogo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchTeamLogo>>, {teamId: number;data: BodyType<UpdateTeamLogoInput>}> = (props) => {
+          const {teamId,data} = props ?? {};
+
+          return  patchTeamLogo(teamId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchTeamLogoMutationResult = NonNullable<Awaited<ReturnType<typeof patchTeamLogo>>>
+    export type PatchTeamLogoMutationBody = BodyType<UpdateTeamLogoInput>
+    export type PatchTeamLogoMutationError = ErrorType<void>
+
+    /**
+ * @summary Update the team logo URL
+ */
+export const usePatchTeamLogo = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchTeamLogo>>, TError,{teamId: number;data: BodyType<UpdateTeamLogoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchTeamLogo>>,
+        TError,
+        {teamId: number;data: BodyType<UpdateTeamLogoInput>},
+        TContext
+      > => {
+      return useMutation(getPatchTeamLogoMutationOptions(options));
+    }
+
 export const getGetTeamLeaderboardUrl = (teamId: number,) => {
 
 
@@ -661,6 +736,10 @@ export function useGetTeamLeaderboard<TData = Awaited<ReturnType<typeof getTeamL
 
 
 export const getCreatePaymentUrl = () => {
+
+
+
+
   return `/api/payments/create`
 }
 
@@ -668,85 +747,152 @@ export const getCreatePaymentUrl = () => {
  * @summary Create a Mercado Pago preference for team creation
  */
 export const createPayment = async (paymentCreateInput: PaymentCreateInput, options?: RequestInit): Promise<PaymentCreateResponse> => {
-  return customFetch<PaymentCreateResponse>(getCreatePaymentUrl(), {
+
+  return customFetch<PaymentCreateResponse>(getCreatePaymentUrl(),
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(paymentCreateInput)
-  });
-}
+  }
+);}
+
+
+
+
 
 export const getCreatePaymentMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext> => {
-  const mutationKey = ['createPayment'];
-  const {mutation: mutationOptions, request: requestOptions} = options ?
-        options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-        options
-        : {...options, mutation: {...options.mutation, mutationKey}}
-        : {mutation: { mutationKey }, request: undefined};
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPayment>>, {data: BodyType<PaymentCreateInput>}> = (props) => {
-    const {data} = props ?? {};
-    return createPayment(data, requestOptions);
-  }
-  return { mutationFn, ...mutationOptions }
-}
 
-export type CreatePaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createPayment>>>
-export type CreatePaymentMutationBody = BodyType<PaymentCreateInput>
-export type CreatePaymentMutationError = ErrorType<void>
+const mutationKey = ['createPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPayment>>, {data: BodyType<PaymentCreateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPayment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createPayment>>>
+    export type CreatePaymentMutationBody = BodyType<PaymentCreateInput>
+    export type CreatePaymentMutationError = ErrorType<void>
+
+    /**
  * @summary Create a Mercado Pago preference for team creation
  */
 export const useCreatePayment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationResult<Awaited<ReturnType<typeof createPayment>>, TError, {data: BodyType<PaymentCreateInput>}, TContext> => {
-  return useMutation(getCreatePaymentMutationOptions(options));
-}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPayment>>,
+        TError,
+        {data: BodyType<PaymentCreateInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentMutationOptions(options));
+    }
 
+export const getGetPaymentStatusUrl = (token: string,
+    params?: GetPaymentStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
 
-export const getGetPaymentStatusUrl = (token: string, mpPreapprovalId?: string | null) => {
-  const base = `/api/payments/${token}/status`;
-  return mpPreapprovalId
-    ? `${base}?mpPreapprovalId=${encodeURIComponent(mpPreapprovalId)}`
-    : base;
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/payments/${token}/status?${stringifiedParams}` : `/api/payments/${token}/status`
 }
 
 /**
  * @summary Poll payment status by token
  */
-export const getPaymentStatus = async (token: string, mpPreapprovalId?: string | null, options?: RequestInit): Promise<PaymentStatusResponse> => {
-  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(token, mpPreapprovalId), {
+export const getPaymentStatus = async (token: string,
+    params?: GetPaymentStatusParams, options?: RequestInit): Promise<PaymentStatusResponse> => {
+
+  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(token,params),
+  {
     ...options,
     method: 'GET'
-  });
-}
 
-export const getGetPaymentStatusQueryKey = (token: string, mpPreapprovalId?: string | null) => {
-  return [`/api/payments/${token}/status`, mpPreapprovalId ?? null] as const;
-}
 
-export const getGetPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>, mpPreapprovalId?: string | null}) => {
-  const {query: queryOptions, request: requestOptions, mpPreapprovalId} = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(token, mpPreapprovalId);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentStatus>>> = ({ signal }) => getPaymentStatus(token, mpPreapprovalId, { signal, ...requestOptions });
-  return { queryKey, queryFn, enabled: !!token, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
+  }
+);}
+
+
+
+
+
+export const getGetPaymentStatusQueryKey = (token: string,
+    params?: GetPaymentStatusParams,) => {
+    return [
+    `/api/payments/${token}/status`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(token: string,
+    params?: GetPaymentStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(token,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentStatus>>> = ({ signal }) => getPaymentStatus(token,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
 }
 
 export type GetPaymentStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentStatus>>>
 export type GetPaymentStatusQueryError = ErrorType<void>
 
+
 /**
  * @summary Poll payment status by token
  */
+
 export function useGetPaymentStatus<TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(
-  token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>, mpPreapprovalId?: string | null}
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetPaymentStatusQueryOptions(token, options)
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+ token: string,
+    params?: GetPaymentStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentStatusQueryOptions(token,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
 
 
 export const getLogBreakUrl = () => {
@@ -819,66 +965,4 @@ export const useLogBreak = <TError = ErrorType<void>,
       > => {
       return useMutation(getLogBreakMutationOptions(options));
     }
-
-import type { UpdateTeamLogoInput, UpdateTeamLogoResponse } from './api.schemas';
-
-// ── Team Logo ────────────────────────────────────────────────────────────────
-
-export const patchTeamLogo = async (
-  teamId: number,
-  data: UpdateTeamLogoInput,
-  options?: SecondParameter<typeof customFetch>,
-): Promise<UpdateTeamLogoResponse> => {
-  return customFetch<UpdateTeamLogoResponse>(`/api/teams/${teamId}/logo`, {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...(options as RequestInit | undefined)?.headers },
-    body: JSON.stringify(data),
-  });
-};
-
-export const getPatchTeamLogoMutationOptions = <TError = ErrorType<void>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof patchTeamLogo>>,
-      TError,
-      { teamId: number; data: UpdateTeamLogoInput },
-      TContext
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof patchTeamLogo>>,
-    { teamId: number; data: UpdateTeamLogoInput }
-  > = (props) => {
-    const { teamId, data } = props;
-    return patchTeamLogo(teamId, data, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-};
-
-export type PatchTeamLogoMutationResult = NonNullable<Awaited<ReturnType<typeof patchTeamLogo>>>;
-export type PatchTeamLogoMutationBody = UpdateTeamLogoInput;
-export type PatchTeamLogoMutationError = ErrorType<void>;
-
-export const usePatchTeamLogo = <TError = ErrorType<void>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof patchTeamLogo>>,
-      TError,
-      { teamId: number; data: UpdateTeamLogoInput },
-      TContext
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseMutationResult<
-  Awaited<ReturnType<typeof patchTeamLogo>>,
-  TError,
-  { teamId: number; data: UpdateTeamLogoInput },
-  TContext
-> => {
-  return useMutation(getPatchTeamLogoMutationOptions(options));
-};
 

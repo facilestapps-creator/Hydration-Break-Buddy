@@ -12,4 +12,6 @@ export interface Leaderboard {
   teamName: string;
   weekStart: string;
   members: LeaderboardMember[];
+  /** @nullable */
+  logoUrl?: string | null;
 }

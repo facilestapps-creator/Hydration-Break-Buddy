@@ -4,6 +4,7 @@ import { db, usersTable, paymentsTable } from "@workspace/db";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../middlewares/auth";
 import { strictLimiter } from "../lib/rate-limiters";
+import { IS_MP_PROD, getMpToken } from "../lib/mp-client";
 
 const router: IRouter = Router();
 
@@ -12,14 +13,6 @@ const MP_SUBSCRIPTION_CHECKOUT = "https://www.mercadopago.com.ar/subscriptions/c
 
 // MP_ENV=production  → uses real credentials (MP_ACCESS_TOKEN_PROD + _PROD plan IDs).
 // Any other value (or absent) → test-seller credentials for sandbox testing.
-const IS_MP_PROD = process.env.MP_ENV === "production";
-
-function getMpToken(): string {
-  if (IS_MP_PROD) {
-    return process.env.MP_ACCESS_TOKEN_PROD ?? process.env.MP_ACCESS_TOKEN ?? "";
-  }
-  return process.env.MP_ACCESS_TOKEN_TEST_SELLER ?? process.env.MP_ACCESS_TOKEN ?? "";
-}
 
 const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: number }> = {
   team: {

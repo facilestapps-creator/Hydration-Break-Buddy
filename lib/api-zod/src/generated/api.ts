@@ -134,6 +134,22 @@ export const GetTeamResponse = zod.object({
 
 
 /**
+ * @summary Update the team logo URL
+ */
+export const PatchTeamLogoParams = zod.object({
+  "teamId": zod.coerce.number()
+})
+
+export const PatchTeamLogoBody = zod.object({
+  "logoUrl": zod.string()
+})
+
+export const PatchTeamLogoResponse = zod.object({
+  "logoUrl": zod.string()
+})
+
+
+/**
  * @summary Get weekly leaderboard for a team
  */
 export const GetTeamLeaderboardParams = zod.object({
@@ -144,7 +160,6 @@ export const GetTeamLeaderboardResponse = zod.object({
   "teamId": zod.number(),
   "teamName": zod.string(),
   "weekStart": zod.string(),
-  "logoUrl": zod.string().nullish(),
   "members": zod.array(zod.object({
   "userId": zod.number(),
   "name": zod.string(),
@@ -153,23 +168,22 @@ export const GetTeamLeaderboardResponse = zod.object({
   "weeklyHydration": zod.number(),
   "rank": zod.number(),
   "medal": zod.string().nullish()
-}))
+})),
+  "logoUrl": zod.string().nullish()
 })
 
 
 /**
- * @summary Create a Mercado Pago preapproval subscription for team creation
+ * @summary Create a Mercado Pago preference for team creation
  */
 export const CreatePaymentBody = zod.object({
-  "plan": zod.enum(["team", "company"])
+  "plan": zod.string()
 })
 
 export const CreatePaymentResponse = zod.object({
   "paymentToken": zod.string(),
-  "plan": zod.string(),
-  "amountArs": zod.number(),
-  "status": zod.enum(["pending"]),
-  "checkoutUrl": zod.string().nullable()
+  "checkoutUrl": zod.string(),
+  "amountArs": zod.number()
 })
 
 
@@ -177,7 +191,11 @@ export const CreatePaymentResponse = zod.object({
  * @summary Poll payment status by token
  */
 export const GetPaymentStatusParams = zod.object({
-  "token": zod.string()
+  "token": zod.coerce.string()
+})
+
+export const GetPaymentStatusQueryParams = zod.object({
+  "mpPreapprovalId": zod.coerce.string().nullish()
 })
 
 export const GetPaymentStatusResponse = zod.object({
@@ -191,6 +209,7 @@ export const GetPaymentStatusResponse = zod.object({
  * @summary Log a completed break
  */
 export const LogBreakBody = zod.object({
+  "userId": zod.number(),
   "breakType": zod.string()
 })
 
@@ -200,3 +219,5 @@ export const LogBreakResponse = zod.object({
   "breakType": zod.string(),
   "completedAt": zod.string()
 })
+
+

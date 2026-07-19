@@ -58,21 +58,19 @@ export interface TeamInput {
 }
 
 export interface PaymentCreateInput {
-  plan: 'team' | 'company';
+  plan: string;
 }
 
 export interface PaymentCreateResponse {
   paymentToken: string;
-  plan: string;
+  checkoutUrl: string;
   amountArs: number;
-  status: 'pending';
-  /** MP hosted checkout URL — redirect the user here to complete subscription */
-  checkoutUrl: string | null;
 }
 
 export interface PaymentStatusResponse {
   paymentToken: string;
   status: string;
+  /** @nullable */
   mpPaymentId?: string | null;
 }
 
@@ -95,9 +93,17 @@ export interface Leaderboard {
   teamId: number;
   teamName: string;
   weekStart: string;
+  members: LeaderboardMember[];
   /** @nullable */
   logoUrl?: string | null;
-  members: LeaderboardMember[];
+}
+
+export interface UpdateTeamLogoInput {
+  logoUrl: string;
+}
+
+export interface UpdateTeamLogoResponse {
+  logoUrl: string;
 }
 
 export interface BreakEntry {
@@ -108,13 +114,11 @@ export interface BreakEntry {
 }
 
 export interface BreakInput {
+  userId: number;
   breakType: string;
 }
 
-export interface UpdateTeamLogoInput {
-  logoUrl: string;
-}
+export type GetPaymentStatusParams = {
+mpPreapprovalId?: string | null;
+};
 
-export interface UpdateTeamLogoResponse {
-  logoUrl: string;
-}

@@ -135,7 +135,7 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
     // Log to server in team mode
     if (mode === "team" && userId) {
-      logBreak.mutate({ data: { breakType: activeBreakType } }, {
+      logBreak.mutate({ data: { breakType: activeBreakType, userId: userId! } }, {
         onSuccess: () => {
           if (teamId) queryClient.invalidateQueries({ queryKey: getGetTeamLeaderboardQueryKey(teamId) });
           queryClient.invalidateQueries({ queryKey: getGetUserStatsQueryKey(userId) });
@@ -289,7 +289,7 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
             disabled={breakStarted}
           >
             <Play className="w-5 h-5 fill-current" />
-            Comenzar el break
+            {t("breaks.start")}
           </Button>
 
           {/* "Saltármelo" — always enabled, shows toast and skips without counting */}
@@ -298,7 +298,7 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
             className="w-full mb-3"
             onClick={skipBreakFromModal}
           >
-            Saltármelo
+            {t("breaks.skip")}
           </Button>
 
           {/* "¡Listo!" — enabled only when countdown reaches 0 */}

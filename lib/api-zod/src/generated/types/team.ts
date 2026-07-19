@@ -12,4 +12,9 @@ export interface Team {
   inviteCode: string;
   createdAt: string;
   memberCount: number;
+  plan: string;
+  subscriptionStatus: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  nearMemberLimit: boolean;
 }

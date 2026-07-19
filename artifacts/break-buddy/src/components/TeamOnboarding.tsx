@@ -9,6 +9,7 @@ import {
   useJoinTeam,
   useCreatePayment,
   useGetPaymentStatus,
+  getGetPaymentStatusQueryKey,
 } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ export function TeamOnboarding({
   const [generatedTeam, setGeneratedTeam] = useState<{ id: number; inviteCode: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   // Persist selected plan across MP redirect (3DS case)
   const [selectedPlan, setSelectedPlan] = useState<"team" | "company">(
@@ -78,20 +80,25 @@ export function TeamOnboarding({
   const createPayment = useCreatePayment();
 
   const pollingEnabled = step === "pay-pending" && !!pendingToken;
-  const paymentStatus = useGetPaymentStatus(pendingToken ?? "", {
+  const mpParams = { mpPreapprovalId: mpReturnPreapprovalId ?? undefined };
+  const paymentStatus = useGetPaymentStatus(
+    pendingToken ?? "",
     // Pass the preapproval_id that MP appended to the back_url so the backend
     // can use GET /preapproval/{id} directly instead of the unreliable /search.
-    mpPreapprovalId: mpReturnPreapprovalId,
-    query: {
-      enabled: pollingEnabled,
-      refetchInterval: (query) => {
-        const status = query.state.data?.status;
-        if (status === "approved" || status === "rejected" || status === "cancelled") return false;
-        return 2000;
+    mpParams,
+    {
+      query: {
+        queryKey: getGetPaymentStatusQueryKey(pendingToken ?? "", mpParams),
+        enabled: pollingEnabled,
+        refetchInterval: (query) => {
+          const status = query.state.data?.status;
+          if (status === "approved" || status === "rejected" || status === "cancelled") return false;
+          return 2000;
+        },
+        staleTime: 0,
       },
-      staleTime: 0,
-    },
-  });
+    }
+  );
 
   const cleanedUrlRef = useRef(false);
   useEffect(() => {
@@ -199,7 +206,7 @@ export function TeamOnboarding({
       }
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, retryCount]);
 
   const handleJoinTeam = (e: React.FormEvent) => {
     e.preventDefault();
@@ -627,7 +634,7 @@ export function TeamOnboarding({
                   variant="primary"
                   size="lg"
                   className="w-full"
-                  onClick={() => setStep("create-team")}
+                  onClick={() => { setError(""); setRetryCount(c => c + 1); }}
                 >
                   {t("onboarding.payPending.retry")}
                 </Button>
