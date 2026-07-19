@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Settings, Play, Check, Globe } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/hooks/use-audio";
 import { TimerRing } from "@/components/TimerRing";
 import { Mascot } from "@/components/Mascot";
@@ -10,7 +11,7 @@ import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
 import { Switch } from "@/components/Switch";
 import { LeaderboardModal } from "@/components/LeaderboardModal";
-import { BREAK_TYPES, BreakType, YOUTUBE_LINKS } from "@/lib/breaks";
+import { BREAK_TYPES, BreakType, BREAK_DURATIONS, BREAK_SEARCH_URLS } from "@/lib/breaks";
 import { SUPPORTED_LANGUAGES } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useLogBreak, getGetTeamLeaderboardQueryKey, getGetUserStatsQueryKey } from "@workspace/api-client-react";
@@ -37,10 +38,13 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [youtubeIndex, setYoutubeIndex] = useState(0);
+  // Break countdown — independent of the work timer
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(0);
+  const [breakStarted, setBreakStarted] = useState(false);
 
   const { playNotificationSound, resumeContext } = useAudio();
   const logBreak = useLogBreak();
+  const { toast } = useToast();
 
   // Check if browser supports Notifications
   const notificationsSupported = typeof window !== "undefined" && "Notification" in window;
@@ -87,6 +91,15 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
     return () => clearInterval(intervalId);
   }, [isRunning, enabledBreaks, currentBreakIndex]);
 
+  // Break countdown — runs only while modal is open and "Comenzar" was clicked
+  useEffect(() => {
+    if (!isBreakModalOpen || !breakStarted || breakSecondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setBreakSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isBreakModalOpen, breakStarted]);
+
   const activeBreakType = enabledBreaks.length > 0
     ? enabledBreaks[currentBreakIndex % enabledBreaks.length]
     : "walk";
@@ -95,6 +108,8 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
   const triggerBreak = () => {
     setIsRunning(false);
+    setBreakSecondsLeft(BREAK_DURATIONS[activeBreakType as BreakType] ?? 120);
+    setBreakStarted(false);
     void playNotificationSound();
     if (notificationsSupported && notifications && Notification.permission === "granted") {
       new Notification(t("breaks." + activeBreakType + ".title"), {
@@ -106,6 +121,13 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
   const skipBreak = () => nextBreak();
   const takeBreakNow = () => triggerBreak();
+
+  // "Saltármelo" inside the modal — shows a toast then skips without counting the break
+  const skipBreakFromModal = () => {
+    toast({ title: "Si no se cumple el tiempo no cuenta 😉" });
+    setIsBreakModalOpen(false);
+    nextBreak();
+  };
 
   const finishBreak = () => {
     setBreaksTaken(prev => prev + 1);
@@ -121,9 +143,6 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
       });
     }
 
-    if (activeBreakType === "eye") {
-      setYoutubeIndex(prev => (prev + 1) % YOUTUBE_LINKS.length);
-    }
     nextBreak();
   };
 
@@ -238,21 +257,58 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
           </motion.div>
 
           <h2 className="text-3xl font-black mb-3 text-foreground">{t("breaks." + activeBreakType + ".title")}</h2>
-          <p className="text-muted-foreground text-lg mb-8 leading-relaxed font-medium">
+          <p className="text-muted-foreground text-lg mb-4 leading-relaxed font-medium">
             {t("breaks." + activeBreakType + ".desc")}
           </p>
 
-          {activeBreakType === "eye" && (
+          {/* Countdown display */}
+          <div className={cn(
+            "text-5xl font-black tabular-nums mb-6 transition-colors",
+            breakSecondsLeft === 0 && breakStarted ? "text-secondary" : "text-foreground"
+          )}>
+            {formatTime(breakSecondsLeft)}
+          </div>
+
+          {/* Video search button — eye and walk only */}
+          {(activeBreakType === "eye" || activeBreakType === "walk") && BREAK_SEARCH_URLS[activeBreakType] && (
             <Button
               variant="accent"
               className="w-full mb-4"
-              onClick={() => window.open(YOUTUBE_LINKS[youtubeIndex], "_blank")}
+              onClick={() => window.open(BREAK_SEARCH_URLS[activeBreakType]!, "_blank")}
             >
               {t("breaks.watchVideo")}
             </Button>
           )}
 
-          <Button variant="primary" size="lg" className="w-full gap-2 text-lg" onClick={finishBreak}>
+          {/* "Comenzar" — disabled after first click */}
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full gap-2 text-lg mb-3"
+            onClick={() => setBreakStarted(true)}
+            disabled={breakStarted}
+          >
+            <Play className="w-5 h-5 fill-current" />
+            Comenzar el break
+          </Button>
+
+          {/* "Saltármelo" — always enabled, shows toast and skips without counting */}
+          <Button
+            variant="ghost"
+            className="w-full mb-3"
+            onClick={skipBreakFromModal}
+          >
+            Saltármelo
+          </Button>
+
+          {/* "¡Listo!" — enabled only when countdown reaches 0 */}
+          <Button
+            variant={breakSecondsLeft === 0 ? "primary" : "outline"}
+            size="lg"
+            className="w-full gap-2 text-lg"
+            onClick={finishBreak}
+            disabled={breakSecondsLeft > 0}
+          >
             <Check className="w-6 h-6 stroke-[3]" />
             {t("breaks.done")}
           </Button>

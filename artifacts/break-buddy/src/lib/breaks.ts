@@ -32,8 +32,16 @@ export const BREAK_TYPES: Record<BreakType, BreakInfo> = {
   }
 };
 
-export const YOUTUBE_LINKS = [
-  "https://www.youtube.com/watch?v=EsUHNnLEAU8", // 20-20-20
-  "https://www.youtube.com/watch?v=nJCBpilGHh0", // Eye yoga
-  "https://www.youtube.com/watch?v=mC4UQf8NHE0", // Eye relaxation
-];
+// Duration in seconds for the in-modal countdown, by break type
+export const BREAK_DURATIONS: Record<BreakType, number> = {
+  hydration: 120,  // 2 minutes
+  eye: 180,        // 3 minutes
+  walk: 300,       // 5 minutes
+};
+
+// Google Search links — never go stale unlike direct video links.
+// hydration has no video button.
+export const BREAK_SEARCH_URLS: Partial<Record<BreakType, string>> = {
+  eye: `https://www.google.com/search?q=${encodeURIComponent("videos para descanso visual")}`,
+  walk: `https://www.google.com/search?q=${encodeURIComponent("videos para descanso de oficina en 5 minutos")}`,
+};

@@ -1,0 +1,42 @@
+Necesito dos mejoras en el flujo de breaks de Break Buddy.
+
+PARTE 1 — Botones de video → búsqueda de Google
+
+Hoy, en artifacts/break-buddy/src/lib/breaks.ts, existe un array YOUTUBE_LINKS con links fijos a videos de YouTube, y en artifacts/break-buddy/src/pages/Home.tsx se usa solo para el tipo "eye" (descanso visual), rotando de a uno por vez. Uno de esos links está roto/caído.
+
+Reemplazá ese mecanismo por links de búsqueda de Google (no a un video puntual, para que no se rompan nunca):
+- Para el break "eye" (descanso visual): botón que abra https://www.google.com/search?q=videos+para+descanso+visual (usá encodeURIComponent para armar el query string correctamente)
+- Para el break "walk" (caminar/estirarse): agregar el mismo tipo de botón (hoy no tiene ninguno), que abra una búsqueda con el texto "videos para descanso de oficina en 5 minutos"
+- El break "hydration" no lleva botón de video, se queda como está.
+
+Sacá el array YOUTUBE_LINKS y la lógica de youtubeIndex que rota entre links, ya no hacen falta con un solo link de búsqueda fijo por tipo.
+
+PARTE 2 — Contador real dentro del modal de break, con 3 botones
+
+Hoy, en artifacts/break-buddy/src/pages/Home.tsx, cuando se abre el modal de break (isBreakModalOpen), solo se ve el título, la descripción, el botón de video (si es "eye") y un botón "¡Listo!" que suma el punto al tocarlo, sin ningún control de tiempo real dentro del break.
+
+Ojo: ya existe un botón "Saltar" (skipBreak) por fuera del modal, que salta el break ANTES de que empiece. Esto es distinto — necesito un flujo nuevo DENTRO del modal, una vez que el break ya arrancó.
+
+Quiero que el modal de break tenga:
+
+1. Un contador visual de cuenta regresiva (mm:ss), con la duración según el tipo de break:
+   - hidratación: 2 minutos (120 segundos)
+   - descanso visual: 3 minutos (180 segundos)
+   - caminar/estirarse: 5 minutos (300 segundos)
+
+2. Tres botones, con este comportamiento exacto:
+   - "Comenzar el break": al tocarlo arranca la cuenta regresiva. Después de tocado, este botón queda deshabilitado y en gris (no se puede volver a tocar). Antes de tocarlo, el contador se muestra estático en el tiempo total sin correr.
+   - "Saltármelo": habilitado todo el tiempo (antes y durante la cuenta regresiva). Al tocarlo, mostrá un toast (ya existe el sistema de toast del proyecto en src/hooks/use-toast.ts, usá ese) con un mensaje tipo "Si no se cumple el tiempo no cuenta 😉", y después ejecutá la misma lógica que ya existe para saltear un break sin sumar puntos (avanzar al próximo break/intervalo de trabajo, sin llamar a logBreak).
+   - "¡Listo!": arranca deshabilitado/gris. Se habilita recién cuando el contador llega a 0:00. Al tocarlo (una vez habilitado) ejecuta exactamente la lógica que ya existe hoy en finishBreak() (suma el punto, loguea el break en modo equipo, invalida las queries de leaderboard/stats, etc.) — no cambies esa parte.
+
+3. Los tres botones quedan visibles en pantalla todo el tiempo (no se ocultan ni desaparecen en ningún momento del flujo, solo cambia si están habilitados/deshabilitados).
+
+4. El botón de video-búsqueda (parte 1) puede seguir mostrándose junto con estos tres botones para "eye" y "walk", no reemplaza nada de esto.
+
+Fijate que el contador de la cuenta regresiva del break es independiente del contador principal (timeLeft / workInterval) que ya existe para el intervalo de trabajo — no lo mezcles ni lo reutilices, es un estado nuevo separado que solo corre mientras el modal está abierto y "Comenzar" fue tocado.
+
+PARTE 3 — Empaquetar el proyecto para revisión externa
+
+Una vez aplicados los cambios de las partes 1 y 2, y confirmado que todo compila/corre bien, armá un archivo .zip del proyecto completo para que lo pueda mandar a evaluar externamente. Excluí de ese zip: node_modules, cualquier carpeta dist o de build, .cache, .git, archivos .tsbuildinfo, y cualquier archivo .env o de secrets/credenciales — el zip no puede contener nada sensible (tokens, access keys, etc.), solo código fuente y archivos de configuración versionables.
+
+Dejá el .zip listo para descargar y decime el nombre/ubicación del archivo cuando esté.

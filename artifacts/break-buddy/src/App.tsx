@@ -7,6 +7,7 @@ import { ModeSelection } from "./components/ModeSelection";
 import { TeamOnboarding } from "./components/TeamOnboarding";
 import { SetupConfig } from "./components/SetupConfig";
 import { FeedbackWidget } from "./components/FeedbackWidget";
+import { Toaster } from "./components/ui/toaster";
 import { useLocalStorage } from "./hooks/use-local-storage";
 
 const queryClient = new QueryClient();
@@ -113,6 +114,7 @@ function App() {
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <Router />
         <FeedbackWidget />
+        <Toaster />
       </WouterRouter>
     </QueryClientProvider>
   );
