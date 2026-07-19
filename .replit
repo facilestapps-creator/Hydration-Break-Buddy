@@ -33,6 +33,9 @@ MP_PREAPPROVAL_PLAN_ID_TEAM = "1cbeba0be7bd49cc92d3ee343c18a04f"
 APP_PUBLIC_URL = "https://sipwell.app"
 ALLOWED_ORIGIN = "https://sipwell.app"
 CANONICAL_URL = "https://sipwell.app"
+MP_ENV = "production"
+MP_PREAPPROVAL_PLAN_ID_COMPANY_PROD = "f6c53a1130074f22925812e17a0046f5"
+MP_PREAPPROVAL_PLAN_ID_TEAM_PROD = "4235bcc9b99e4113b47eb95587680e81"
 
 [[ports]]
 localPort = 8080

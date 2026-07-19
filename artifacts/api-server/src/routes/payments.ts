@@ -10,18 +10,28 @@ const router: IRouter = Router();
 // MP subscription checkout base URL — plan init_point format
 const MP_SUBSCRIPTION_CHECKOUT = "https://www.mercadopago.com.ar/subscriptions/checkout";
 
-// In sandbox testing we use the test-seller token; in production use the real one.
+// MP_ENV=production  → uses real credentials (MP_ACCESS_TOKEN_PROD + _PROD plan IDs).
+// Any other value (or absent) → test-seller credentials for sandbox testing.
+const IS_MP_PROD = process.env.MP_ENV === "production";
+
 function getMpToken(): string {
+  if (IS_MP_PROD) {
+    return process.env.MP_ACCESS_TOKEN_PROD ?? process.env.MP_ACCESS_TOKEN ?? "";
+  }
   return process.env.MP_ACCESS_TOKEN_TEST_SELLER ?? process.env.MP_ACCESS_TOKEN ?? "";
 }
 
 const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: number }> = {
   team: {
-    planId: process.env.MP_PREAPPROVAL_PLAN_ID_TEAM ?? "",
+    planId: IS_MP_PROD
+      ? (process.env.MP_PREAPPROVAL_PLAN_ID_TEAM_PROD ?? "")
+      : (process.env.MP_PREAPPROVAL_PLAN_ID_TEAM ?? ""),
     amountArs: 5500,
   },
   company: {
-    planId: process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY ?? "",
+    planId: IS_MP_PROD
+      ? (process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY_PROD ?? "")
+      : (process.env.MP_PREAPPROVAL_PLAN_ID_COMPANY ?? ""),
     amountArs: 14000,
   },
 };
