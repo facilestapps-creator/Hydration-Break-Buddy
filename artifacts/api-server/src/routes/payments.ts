@@ -126,6 +126,16 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
       let preapprovalStatus: string | null = null;
       let preapprovalId: string | null = payment.mpPreapprovalId ?? null;
 
+      // If the frontend passed the preapproval_id from MP's redirect URL,
+      // trust it and use direct fetch — avoids the unreliable /search fallback
+      // that can return a stale result from a previous payment attempt.
+      const queryMpId = typeof req.query.mpPreapprovalId === "string"
+        ? req.query.mpPreapprovalId.trim()
+        : null;
+      if (queryMpId && !preapprovalId) {
+        preapprovalId = queryMpId;
+      }
+
       if (preapprovalId) {
         // We already have the preapproval ID — fetch directly
         const mpRes = await fetch(

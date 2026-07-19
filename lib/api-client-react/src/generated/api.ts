@@ -706,28 +706,31 @@ export const useCreatePayment = <TError = ErrorType<void>,
 }
 
 
-export const getGetPaymentStatusUrl = (token: string) => {
-  return `/api/payments/${token}/status`
+export const getGetPaymentStatusUrl = (token: string, mpPreapprovalId?: string | null) => {
+  const base = `/api/payments/${token}/status`;
+  return mpPreapprovalId
+    ? `${base}?mpPreapprovalId=${encodeURIComponent(mpPreapprovalId)}`
+    : base;
 }
 
 /**
  * @summary Poll payment status by token
  */
-export const getPaymentStatus = async (token: string, options?: RequestInit): Promise<PaymentStatusResponse> => {
-  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(token), {
+export const getPaymentStatus = async (token: string, mpPreapprovalId?: string | null, options?: RequestInit): Promise<PaymentStatusResponse> => {
+  return customFetch<PaymentStatusResponse>(getGetPaymentStatusUrl(token, mpPreapprovalId), {
     ...options,
     method: 'GET'
   });
 }
 
-export const getGetPaymentStatusQueryKey = (token: string) => {
-  return [`/api/payments/${token}/status`] as const;
+export const getGetPaymentStatusQueryKey = (token: string, mpPreapprovalId?: string | null) => {
+  return [`/api/payments/${token}/status`, mpPreapprovalId ?? null] as const;
 }
 
-export const getGetPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}) => {
-  const {query: queryOptions, request: requestOptions} = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(token);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentStatus>>> = ({ signal }) => getPaymentStatus(token, { signal, ...requestOptions });
+export const getGetPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>, mpPreapprovalId?: string | null}) => {
+  const {query: queryOptions, request: requestOptions, mpPreapprovalId} = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetPaymentStatusQueryKey(token, mpPreapprovalId);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentStatus>>> = ({ signal }) => getPaymentStatus(token, mpPreapprovalId, { signal, ...requestOptions });
   return { queryKey, queryFn, enabled: !!token, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
 }
 
@@ -738,7 +741,7 @@ export type GetPaymentStatusQueryError = ErrorType<void>
  * @summary Poll payment status by token
  */
 export function useGetPaymentStatus<TData = Awaited<ReturnType<typeof getPaymentStatus>>, TError = ErrorType<void>>(
-  token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>, mpPreapprovalId?: string | null}
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPaymentStatusQueryOptions(token, options)
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };

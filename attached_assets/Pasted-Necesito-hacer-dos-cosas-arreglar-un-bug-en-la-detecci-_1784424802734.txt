@@ -1,0 +1,29 @@
+Necesito hacer dos cosas: arreglar un bug en la detección del pago, y migrar de credenciales de test a credenciales de producción de Mercado Pago.
+
+PARTE 1 — Bug: la búsqueda de la suscripción no encuentra la correcta
+
+Hoy, en artifacts/api-server/src/routes/payments.ts, el endpoint GET /payments/:token/status busca la suscripción con GET /preapproval/search?external_reference=... cuando todavía no tenemos guardado el mpPreapprovalId. Esa búsqueda está devolviendo mal un resultado viejo (de otro intento de pago anterior, no el de la sesión actual), en vez del correcto.
+
+En el frontend, en artifacts/break-buddy/src/components/TeamOnboarding.tsx, ya leemos mpReturnPreapprovalId del query param preapproval_id que Mercado Pago agrega solo cuando vuelve del checkout. Quiero que:
+
+1. El frontend, al llamar al endpoint de status (el hook que sea, buscalo en artifacts/break-buddy/src/hooks), mande ese preapproval_id como query param si está presente (ej: GET /payments/:token/status?mpPreapprovalId=XXXX).
+
+2. En el backend, en ese mismo endpoint de payments.ts: si viene mpPreapprovalId en el query, usalo DIRECTAMENTE con GET /preapproval/{id} (no con /search) para consultar el estado — esto es mucho más confiable que la búsqueda. Solo si no viene ese parámetro (fallback para compatibilidad con sesiones viejas), usar el método de /search que ya existe hoy.
+
+3. Mantené la lógica actual de guardar mpPreapprovalId en la fila de payments una vez que lo tengamos, para que las siguientes consultas no dependan más del query param.
+
+PARTE 2 — Migrar de test a producción
+
+Necesito pasar de credenciales de prueba a credenciales reales de Mercado Pago para poder hacer un pago real de punta a punta. Esto implica:
+
+1. Confirmame qué variables de entorno estamos usando hoy para test (busca en el código: seguramente algo como MP_ACCESS_TOKEN_TEST_SELLER, MP_PREAPPROVAL_PLAN_ID_TEAM, MP_PREAPPROVAL_PLAN_ID_COMPANY) y qué nombres de variable deberíamos usar para producción (ej: MP_ACCESS_TOKEN, MP_PREAPPROVAL_PLAN_ID_TEAM_PROD, MP_PREAPPROVAL_PLAN_ID_COMPANY_PROD, o el esquema que ya siga el código).
+
+2. Yo te voy a pasar el Access Token de PRODUCCIÓN (real) de mi cuenta de Mercado Pago para guardarlo como secret. NO lo hardcodees en ningún archivo, solo en Secrets de Replit.
+
+3. Con ese access token de producción, necesito que crees DOS planes nuevos de preapproval (uno para "team" y otro para "company"), usando POST https://api.mercadopago.com/preapproval_plan con los mismos datos (monto, frecuencia, moneda, reason) que tienen los planes de test actuales — buscalos primero con un GET a los planes de test existentes para copiar los mismos valores. IMPORTANTE: en el body de creación de cada plan nuevo, seteá directamente "back_url": "https://sipwell.app" (no lo dejes vacío ni con el default de MP).
+
+4. Guardame los dos IDs de los planes nuevos que se creen, y actualizá el código para que use las variables de producción en vez de las de test (sin borrar el código de test, dejalo como fallback o detrás de una env var tipo MP_ENV=production/test si ya existe algo así, o agregalo).
+
+5. Mostrame un resumen antes de que yo haga el pago real: qué planes se crearon, con qué back_url quedaron, y qué variables de entorno hay que revisar en Secrets.
+
+No hagas el pago real vos ni simules nada — solo dejame el entorno listo para que yo mismo haga la transacción real desde la app.

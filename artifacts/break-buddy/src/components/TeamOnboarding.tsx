@@ -79,6 +79,9 @@ export function TeamOnboarding({
 
   const pollingEnabled = step === "pay-pending" && !!pendingToken;
   const paymentStatus = useGetPaymentStatus(pendingToken ?? "", {
+    // Pass the preapproval_id that MP appended to the back_url so the backend
+    // can use GET /preapproval/{id} directly instead of the unreliable /search.
+    mpPreapprovalId: mpReturnPreapprovalId,
     query: {
       enabled: pollingEnabled,
       refetchInterval: (query) => {
