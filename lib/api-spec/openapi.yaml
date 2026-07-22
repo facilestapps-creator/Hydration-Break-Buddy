@@ -18,6 +18,8 @@ tags:
     description: Break tracking
   - name: payments
     description: Mercado Pago payment flow
+  - name: config
+    description: App configuration
 paths:
   /healthz:
     get:
@@ -31,6 +33,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /config:
+    get:
+      operationId: getConfig
+      tags: [config]
+      summary: Get public app configuration
+      responses:
+        "200":
+          description: Config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
 
   /users:
     post:
@@ -355,7 +370,7 @@ components:
 
     TeamInput:
       type: object
-      required: [name, paymentToken]
+      required: [name]
       properties:
         name:
           type: string
@@ -363,6 +378,9 @@ components:
           maxLength: 50
         paymentToken:
           type: string
+        plan:
+          type: string
+          enum: [team, company]
 
     PaymentCreateInput:
       type: object
@@ -391,6 +409,17 @@ components:
         status:
           type: string
         mpPaymentId:
+          type: ["string", "null"]
+
+    AppConfig:
+      type: object
+      required: [freeLaunchActive, freeLaunchUntil]
+      properties:
+        mpPublicKey:
+          type: ["string", "null"]
+        freeLaunchActive:
+          type: boolean
+        freeLaunchUntil:
           type: ["string", "null"]
 
     TeamJoinInput:

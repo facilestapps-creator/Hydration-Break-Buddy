@@ -1,0 +1,37 @@
+Necesito implementar un modo "gratis por lanzamiento" para crear equipo/empresa sin pasar por Mercado Pago, válido hasta una fecha límite. Después de esa fecha, el flujo de pago normal tiene que volver a activarse solo, sin que nadie tenga que tocar nada a mano.
+
+DISEÑO (no lo cambies, seguí esto exacto):
+
+Una sola variable de entorno nueva: LAUNCH_FREE_UNTIL, con un timestamp ISO en UTC. El valor que hay que usar es exactamente "2026-07-31T02:59:59.000Z" (esto equivale al 30 de julio 23:59:59 hora Argentina). Si esa variable no está seteada, o si Date.now() ya pasó ese timestamp, el comportamiento tiene que ser EXACTAMENTE el actual (pago obligatorio por Mercado Pago) — no agregues un segundo flag de on/off, la fecha sola decide todo.
+
+PARTE 1 — Backend: aceptar creación de equipo sin pago cuando el modo gratis está activo
+
+1. En lib/api-spec/openapi.yaml, modificá el schema CreateTeamBody: paymentToken pasa a ser opcional (no required), y agregá un campo nuevo plan (opcional, enum: team | company). Regenerá el cliente con el comando de codegen después de este cambio (no edites a mano los archivos generados, ya sabés por qué).
+
+2. En artifacts/api-server/src/routes/teams.ts, en el handler POST /teams, agregá esta lógica ANTES de la transacción de reclamar el pago:
+
+   - Calculá si el modo gratis está activo: const freeModeActive = !!process.env.LAUNCH_FREE_UNTIL && Date.now() < new Date(process.env.LAUNCH_FREE_UNTIL).getTime();
+   - Si freeModeActive es true:
+     - El campo plan del body pasa a ser obligatorio en este caso (si no viene, devolvé 400 con un mensaje claro).
+     - Saltate por completo el bloque que reclama el paymentToken (el update con consumed/status/approved). No hace falta ningún paymentToken.
+     - Creá el team directamente con: plan tomado del body, memberLimit igual que hoy (10 para team, null para company), subscriptionStatus: "active", mpPreapprovalId: null, currentPeriodEnd: igual que hoy (un mes desde ahora).
+     - Sumá al creador al team, igual que en el flujo actual.
+   - Si freeModeActive es false: dejá el comportamiento actual sin ningún cambio (paymentToken obligatorio, reclamo del pago, todo igual que hoy).
+
+3. Agregá un endpoint nuevo GET /config (sin auth, público) que devuelva { freeLaunchActive: boolean, freeLaunchUntil: string | null } usando la misma lógica de freeModeActive. Documentalo en openapi.yaml y regenerá el cliente.
+
+PARTE 2 — Frontend: saltar el paso de pago cuando el modo gratis está activo
+
+En artifacts/break-buddy/src/components/TeamOnboarding.tsx:
+
+1. Al montar el componente, llamá al nuevo GET /config (con el hook que genere el cliente) para saber si freeLaunchActive es true.
+
+2. Si freeLaunchActive es true:
+   - En el paso "plan-choice", cuando el usuario elige team o company (handleSelectPlan), en vez de ir al paso "payment", andá directo al paso "create-team", y en el useEffect que llama a createTeam.mutate, mandá { name: teamName.trim(), plan: selectedPlan } (sin paymentToken) cuando freeLaunchActive sea true, dejando el caso con paymentToken igual que está hoy para cuando freeLaunchActive sea false.
+   - Mostrá un cartel/banner visible en los pasos "plan-choice" y "team-choice" (arriba del contenido, estilo destacado pero no invasivo) con el texto: "🎉 Gratis durante el lanzamiento — sin cargo hasta el 30 de julio". Agregá la clave de traducción correspondiente (algo como onboarding.freeLaunchBanner) a los 12 idiomas de artifacts/break-buddy/src/i18n/index.ts, con el mismo criterio de tono que las demás claves de onboarding en cada idioma, manteniendo la fecha "30 de julio" traducida naturalmente en cada idioma (ej. "July 30" en inglés).
+
+3. Si freeLaunchActive es false, todo el flujo tiene que comportarse exactamente igual que hoy (sin ningún cartel, con el paso de pago normal). No borres ni condiciones el código del flujo de pago existente, solo agregá el camino alternativo cuando freeLaunchActive es true.
+
+No toques nada del flujo de Mercado Pago en sí (payments.ts, webhooks.ts) ni la lógica de puntos/breaks.
+
+Al terminar, corré pnpm run typecheck y confirmame que pasa limpio. Después decime en qué Secret de Replit tengo que cargar LAUNCH_FREE_UNTIL con el valor exacto que te pasé arriba.

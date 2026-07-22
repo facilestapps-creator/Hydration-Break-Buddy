@@ -5,6 +5,7 @@
  * Break Buddy API
  * OpenAPI spec version: 0.1.0
  */
+import type { TeamInputPlan } from './teamInputPlan';
 
 export interface TeamInput {
   /**
@@ -12,5 +13,6 @@ export interface TeamInput {
      * @maxLength 50
      */
   name: string;
-  paymentToken: string;
+  paymentToken?: string;
+  plan?: TeamInputPlan;
 }

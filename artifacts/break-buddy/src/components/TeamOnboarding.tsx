@@ -10,6 +10,7 @@ import {
   useCreatePayment,
   useGetPaymentStatus,
   getGetPaymentStatusQueryKey,
+  useGetConfig,
 } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,9 @@ export function TeamOnboarding({
   const [paymentFailedMsg, setPaymentFailedMsg] = useState(
     bbPaymentResult === "failure" ? t("onboarding.payPending.failed") : ""
   );
+
+  const config = useGetConfig();
+  const freeLaunchActive = config.data?.freeLaunchActive ?? false;
 
   const createUser = useCreateUser();
   const createTeam = useCreateTeam();
@@ -157,7 +161,11 @@ export function TeamOnboarding({
 
   const handleSelectPlan = (plan: "team" | "company") => {
     setSelectedPlan(plan);
-    setStep("payment");
+    if (freeLaunchActive) {
+      setStep("create-team");
+    } else {
+      setStep("payment");
+    }
   };
 
   // Redirect the user to MP's hosted subscription checkout page.
@@ -186,18 +194,25 @@ export function TeamOnboarding({
     );
   };
 
-  // Auto-create the team once payment is confirmed — no user input needed at this point.
+  // Auto-create the team once payment is confirmed (paid flow) or plan is selected (free-launch flow).
   useEffect(() => {
     if (step !== "create-team") return;
-    if (!userId || !pendingToken || !teamName.trim()) return;
+    if (!userId || !teamName.trim()) return;
+    // In paid mode a payment token is required; in free-launch mode it is not.
+    if (!freeLaunchActive && !pendingToken) return;
     setError("");
+    const mutationData = freeLaunchActive
+      ? { name: teamName.trim(), plan: selectedPlan }
+      : { name: teamName.trim(), paymentToken: pendingToken! };
     createTeam.mutate(
-      { data: { name: teamName.trim(), paymentToken: pendingToken } },
+      { data: mutationData },
       {
         onSuccess: (team) => {
-          setPendingToken(null);
-          window.localStorage.removeItem("bb-pending-payment");
-          window.localStorage.removeItem("bb-pending-plan");
+          if (!freeLaunchActive) {
+            setPendingToken(null);
+            window.localStorage.removeItem("bb-pending-payment");
+            window.localStorage.removeItem("bb-pending-plan");
+          }
           window.localStorage.removeItem("bb-pending-team-name");
           setGeneratedTeam({ id: team.id, inviteCode: team.inviteCode });
           setStep("invite-code");
@@ -331,6 +346,11 @@ export function TeamOnboarding({
               exit={{ opacity: 0, x: -20 }}
               className="flex flex-col gap-6 text-center"
             >
+              {freeLaunchActive && (
+                <div className="bg-primary/10 border border-primary/30 text-primary text-sm font-bold rounded-2xl px-4 py-3 text-center">
+                  {t("onboarding.freeLaunchBanner")}
+                </div>
+              )}
               <div>
                 <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.teamChoice.title")}</h2>
                 <p className="text-muted-foreground font-medium">{t("onboarding.teamChoice.subtitle")}</p>
@@ -408,6 +428,11 @@ export function TeamOnboarding({
               exit={{ opacity: 0, x: -20 }}
               className="flex flex-col gap-5"
             >
+              {freeLaunchActive && (
+                <div className="bg-primary/10 border border-primary/30 text-primary text-sm font-bold rounded-2xl px-4 py-3 text-center">
+                  {t("onboarding.freeLaunchBanner")}
+                </div>
+              )}
               <div className="text-center">
                 <h2 className="text-2xl font-black text-foreground mb-2">{t("onboarding.planChoice.title")}</h2>
                 <p className="text-muted-foreground font-medium">{t("onboarding.planChoice.subtitle")}</p>

@@ -17,6 +17,16 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get public app configuration
+ */
+export const GetConfigResponse = zod.object({
+  "mpPublicKey": zod.string().nullish(),
+  "freeLaunchActive": zod.boolean(),
+  "freeLaunchUntil": zod.string().nullable()
+})
+
+
+/**
  * @summary Create a new user
  */
 export const createUserBodyNameMax = 50;
@@ -77,7 +87,8 @@ export const createTeamBodyNameMax = 50;
 
 export const CreateTeamBody = zod.object({
   "name": zod.string().min(1).max(createTeamBodyNameMax),
-  "paymentToken": zod.string()
+  "paymentToken": zod.string().optional(),
+  "plan": zod.enum(['team', 'company']).optional()
 })
 
 export const CreateTeamResponse = zod.object({

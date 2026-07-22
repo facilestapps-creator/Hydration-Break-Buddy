@@ -67,82 +67,132 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
     inviteCode = generateInviteCode();
   }
 
+  // ── Free-launch mode: skip payment entirely ─────────────────────────────
+  const freeModeActive =
+    !!process.env.LAUNCH_FREE_UNTIL &&
+    Date.now() < new Date(process.env.LAUNCH_FREE_UNTIL).getTime();
+
   // ── Single transaction: claim the payment AND create the team ──────────
   // If anything after the claim fails, the transaction rolls back and the
   // payment is NOT marked consumed — the user keeps the ability to retry.
   let team: typeof teamsTable.$inferSelect;
   let paymentPlan: "team" | "company";
 
-  try {
-    const result = await db.transaction(async (tx) => {
-      // Claim the payment token atomically
-      const claimed = await tx
-        .update(paymentsTable)
-        .set({ consumed: true, updatedAt: new Date() })
-        .where(
-          and(
-            eq(paymentsTable.paymentToken, parsed.data.paymentToken),
-            eq(paymentsTable.status, "approved"),
-            eq(paymentsTable.userId, userId),
-            eq(paymentsTable.consumed, false),
-          )
-        )
-        .returning({
-          id: paymentsTable.id,
-          plan: paymentsTable.plan,
-          mpPreapprovalId: paymentsTable.mpPreapprovalId,
-        });
-
-      if (claimed.length === 0) {
-        // Log the actual DB state of this token so we can diagnose race conditions.
-        const currentState = await tx
-          .select({ status: paymentsTable.status, consumed: paymentsTable.consumed, userId: paymentsTable.userId })
-          .from(paymentsTable)
-          .where(eq(paymentsTable.paymentToken, parsed.data.paymentToken));
-        console.warn(
-          "[teams/create] PAYMENT_NOT_CLAIMABLE token=%s requestingUserId=%s dbState=%j",
-          parsed.data.paymentToken,
-          userId,
-          currentState[0] ?? null,
-        );
-        // Throwing inside a transaction causes an automatic rollback.
-        throw Object.assign(new Error("PAYMENT_NOT_CLAIMABLE"), { isPaymentError: true });
-      }
-
-      const plan = (claimed[0].plan ?? "team") as "team" | "company";
-      const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
-      const memberLimit = plan === "company" ? null : 10;
-
-      const currentPeriodEnd = new Date();
-      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-
-      const [createdTeam] = await tx
-        .insert(teamsTable)
-        .values({
-          name: parsed.data.name,
-          inviteCode,
-          plan,
-          memberLimit,
-          subscriptionStatus: "active",
-          currentPeriodEnd,
-          mpPreapprovalId,
-        })
-        .returning();
-
-      // Add the creator to the team within the same transaction
-      await tx.update(usersTable).set({ teamId: createdTeam.id }).where(eq(usersTable.id, userId));
-
-      return { team: createdTeam, paymentPlan: plan };
-    });
-
-    team = result.team;
-    paymentPlan = result.paymentPlan;
-  } catch (err: unknown) {
-    if (err instanceof Error && (err as { isPaymentError?: boolean }).isPaymentError) {
-      res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
+  if (freeModeActive) {
+    // In free mode, plan is required in the body; paymentToken is ignored.
+    const plan = parsed.data.plan as "team" | "company" | undefined;
+    if (!plan) {
+      res.status(400).json({ error: "plan is required when free launch mode is active" });
       return;
     }
-    throw err; // unexpected DB error — propagate to global handler
+
+    const memberLimit = plan === "company" ? null : 10;
+    const currentPeriodEnd = new Date();
+    currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [createdTeam] = await tx
+          .insert(teamsTable)
+          .values({
+            name: parsed.data.name,
+            inviteCode,
+            plan,
+            memberLimit,
+            subscriptionStatus: "active",
+            currentPeriodEnd,
+            mpPreapprovalId: null,
+          })
+          .returning();
+
+        await tx.update(usersTable).set({ teamId: createdTeam.id }).where(eq(usersTable.id, userId));
+
+        return { team: createdTeam, paymentPlan: plan };
+      });
+
+      team = result.team;
+      paymentPlan = result.paymentPlan;
+    } catch (err: unknown) {
+      throw err;
+    }
+  } else {
+    // ── Paid flow: paymentToken is required ─────────────────────────────
+    if (!parsed.data.paymentToken) {
+      res.status(400).json({ error: "paymentToken is required" });
+      return;
+    }
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Claim the payment token atomically
+        const claimed = await tx
+          .update(paymentsTable)
+          .set({ consumed: true, updatedAt: new Date() })
+          .where(
+            and(
+              eq(paymentsTable.paymentToken, parsed.data.paymentToken!),
+              eq(paymentsTable.status, "approved"),
+              eq(paymentsTable.userId, userId),
+              eq(paymentsTable.consumed, false),
+            )
+          )
+          .returning({
+            id: paymentsTable.id,
+            plan: paymentsTable.plan,
+            mpPreapprovalId: paymentsTable.mpPreapprovalId,
+          });
+
+        if (claimed.length === 0) {
+          // Log the actual DB state of this token so we can diagnose race conditions.
+          const currentState = await tx
+            .select({ status: paymentsTable.status, consumed: paymentsTable.consumed, userId: paymentsTable.userId })
+            .from(paymentsTable)
+            .where(eq(paymentsTable.paymentToken, parsed.data.paymentToken!));
+          console.warn(
+            "[teams/create] PAYMENT_NOT_CLAIMABLE token=%s requestingUserId=%s dbState=%j",
+            parsed.data.paymentToken,
+            userId,
+            currentState[0] ?? null,
+          );
+          // Throwing inside a transaction causes an automatic rollback.
+          throw Object.assign(new Error("PAYMENT_NOT_CLAIMABLE"), { isPaymentError: true });
+        }
+
+        const plan = (claimed[0].plan ?? "team") as "team" | "company";
+        const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
+        const memberLimit = plan === "company" ? null : 10;
+
+        const currentPeriodEnd = new Date();
+        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+
+        const [createdTeam] = await tx
+          .insert(teamsTable)
+          .values({
+            name: parsed.data.name,
+            inviteCode,
+            plan,
+            memberLimit,
+            subscriptionStatus: "active",
+            currentPeriodEnd,
+            mpPreapprovalId,
+          })
+          .returning();
+
+        // Add the creator to the team within the same transaction
+        await tx.update(usersTable).set({ teamId: createdTeam.id }).where(eq(usersTable.id, userId));
+
+        return { team: createdTeam, paymentPlan: plan };
+      });
+
+      team = result.team;
+      paymentPlan = result.paymentPlan;
+    } catch (err: unknown) {
+      if (err instanceof Error && (err as { isPaymentError?: boolean }).isPaymentError) {
+        res.status(402).json({ error: "Payment not found, not approved, already used, or belongs to a different user" });
+        return;
+      }
+      throw err; // unexpected DB error — propagate to global handler
+    }
   }
 
   res.status(201).json(CreateTeamResponse.parse({

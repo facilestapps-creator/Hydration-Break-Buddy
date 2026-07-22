@@ -48,13 +48,22 @@ export interface Team {
   nearMemberLimit: boolean;
 }
 
+export type TeamInputPlan = typeof TeamInputPlan[keyof typeof TeamInputPlan];
+
+
+export const TeamInputPlan = {
+  team: 'team',
+  company: 'company',
+} as const;
+
 export interface TeamInput {
   /**
      * @minLength 1
      * @maxLength 50
      */
   name: string;
-  paymentToken: string;
+  paymentToken?: string;
+  plan?: TeamInputPlan;
 }
 
 export interface PaymentCreateInput {
@@ -72,6 +81,14 @@ export interface PaymentStatusResponse {
   status: string;
   /** @nullable */
   mpPaymentId?: string | null;
+}
+
+export interface AppConfig {
+  /** @nullable */
+  mpPublicKey?: string | null;
+  freeLaunchActive: boolean;
+  /** @nullable */
+  freeLaunchUntil: string | null;
 }
 
 export interface TeamJoinInput {
