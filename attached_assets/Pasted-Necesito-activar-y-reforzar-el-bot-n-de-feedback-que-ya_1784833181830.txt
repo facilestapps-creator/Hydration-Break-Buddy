@@ -1,0 +1,39 @@
+Necesito activar y reforzar el botón de feedback que ya existe pero quedó oculto.
+
+1. ACTIVAR EL BOTÓN
+
+En artifacts/break-buddy/src/components/FeedbackWidget.tsx, el div contenedor tiene la clase
+"invisible" de Tailwind, que lo oculta completamente aunque siga en el DOM. Sacá esa clase para
+que el botón se vea y sea clickeable, sin tocar el resto del layout/estilos.
+
+2. VALIDAR QUE EL SECRET ESTÉ CARGADO
+
+El backend (artifacts/api-server/src/routes/feedback.ts) necesita la variable de entorno
+GMAIL_APP_PASSWORD para poder enviar el mail vía Gmail SMTP con nodemailer. Confirmame si ese
+secret ya está cargado en Replit o si hay que crearlo — si no está, decime que lo cargo yo mismo
+(es la contraseña de aplicación de Gmail para info.breakbuddy@gmail.com, no la contraseña normal
+de la cuenta).
+
+3. ESCAPAR EL TEXTO DEL USUARIO ANTES DE METERLO EN EL HTML DEL MAIL
+
+En ese mismo archivo, la línea que arma el body HTML del mail hace
+message.trim().replace(/\n/g, "<br>") directamente sobre el texto que escribió el usuario, sin
+escapar caracteres HTML. Si alguien escribe algo con < o > en el mensaje, se inserta como HTML
+crudo en el mail. Agregá un escape básico de &, <, >, ", ' a entidades HTML ANTES de reemplazar
+los saltos de línea por <br>, así el contenido del usuario siempre se muestra como texto plano
+en el mail, nunca como HTML interpretado.
+
+4. AGREGAR UN LÍMITE BÁSICO DE ENVÍOS (RATE LIMIT)
+
+Este endpoint es público y sin autenticación (correcto, tiene que poder usarse sin estar
+logueado), pero hoy no tiene ningún límite de frecuencia, así que cualquiera podría mandar
+llamadas repetidas y saturar la casilla de mail. Agregá un rate limit simple en POST /feedback
+(por IP), usando express-rate-limit si ya está en las dependencias, o instalalo si no está: algo
+razonable como máximo 5 envíos por IP cada 15 minutos. Si se supera, devolvé 429 con un mensaje
+claro, y en el frontend (FeedbackWidget.tsx) mostrá ese mensaje de error en vez del genérico
+actual si el status es 429.
+
+No toques el resto del flujo de feedback (el texto del mensaje al usuario, el asunto del mail,
+etc.), solo estos 4 puntos.
+
+Después corré pnpm run typecheck y confirmame que pasa limpio.

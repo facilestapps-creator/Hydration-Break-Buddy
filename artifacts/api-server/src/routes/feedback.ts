@@ -1,7 +1,17 @@
 import { Router, type IRouter } from "express";
 import nodemailer from "nodemailer";
+import { feedbackLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -11,7 +21,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-router.post("/feedback", async (req, res) => {
+router.post("/feedback", feedbackLimiter, async (req, res) => {
   const { message } = req.body as { message?: string };
 
   if (!message || !message.trim()) {
@@ -25,7 +35,7 @@ router.post("/feedback", async (req, res) => {
       to: "info.breakbuddy@gmail.com",
       subject: "Nuevo feedback de usuario",
       text: message.trim(),
-      html: `<p style="font-family:sans-serif;font-size:14px;color:#333;">${message.trim().replace(/\n/g, "<br>")}</p>`,
+      html: `<p style="font-family:sans-serif;font-size:14px;color:#333;">${escapeHtml(message.trim()).replace(/\n/g, "<br>")}</p>`,
     });
 
     res.status(200).json({ ok: true });

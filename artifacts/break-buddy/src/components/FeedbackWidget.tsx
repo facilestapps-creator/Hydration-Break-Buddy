@@ -20,6 +20,11 @@ export function FeedbackWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text.trim() }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setError(data.error ?? "Demasiados mensajes enviados. Esperá 15 minutos e intentá de nuevo.");
+        return;
+      }
       if (!res.ok) throw new Error("error");
       setSent(true);
       setTimeout(() => {
@@ -36,7 +41,7 @@ export function FeedbackWidget() {
 
   return (
     // invisible: hidden from view but stays in the DOM
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 invisible">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
       <AnimatePresence>
         {open && (
           <motion.div
