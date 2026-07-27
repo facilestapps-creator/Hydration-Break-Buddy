@@ -12,3 +12,9 @@ id = "UNxyAp73U5L8cOS-RfpBw"
 uri = "file://break-buddy-review.zip"
 type = "unspecified"
 title = "break-buddy-review.zip"
+
+[[outputs]]
+id = "DC_cRGqHNGgUJSpdqzURg"
+uri = "file://break-buddy-audit.zip"
+type = "unspecified"
+title = "break-buddy-audit.zip"
