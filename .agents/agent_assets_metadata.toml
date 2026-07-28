@@ -18,3 +18,9 @@ id = "DC_cRGqHNGgUJSpdqzURg"
 uri = "file://break-buddy-audit.zip"
 type = "unspecified"
 title = "break-buddy-audit.zip"
+
+[[outputs]]
+id = "z1uTdxB9U_fyMsq__vT9J"
+uri = "file://break-buddy-eval.zip"
+type = "unspecified"
+title = "Break Buddy — código fuente para evaluación"
