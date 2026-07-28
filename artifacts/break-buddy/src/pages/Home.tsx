@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Settings, Play, Check, Globe } from "lucide-react";
+import { Settings, Play, Check, Globe, LogOut } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useToast } from "@/hooks/use-toast";
 import { useAudio } from "@/hooks/use-audio";
@@ -18,7 +18,44 @@ import { useLogBreak, getGetTeamLeaderboardQueryKey, getGetUserStatsQueryKey } f
 import { useQueryClient } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
 
-export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", userId: number | null, teamId: number | null }) {
+// ── Timer persistence ──────────────────────────────────────────────────────
+const TIMER_STATE_KEY = "bb-timer-state";
+
+type TimerState = {
+  targetEndTimestamp: number | null;
+  paused: boolean;
+  pausedTimeLeft: number | null;
+};
+
+function readTimerState(): TimerState | null {
+  try {
+    const raw = window.localStorage.getItem(TIMER_STATE_KEY);
+    return raw ? (JSON.parse(raw) as TimerState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeTimerState(state: TimerState): void {
+  window.localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+}
+
+function clearTimerState(): void {
+  window.localStorage.removeItem(TIMER_STATE_KEY);
+}
+// ──────────────────────────────────────────────────────────────────────────
+
+export default function Home({
+  mode,
+  userId,
+  teamId,
+  onExit,
+}: {
+  mode: "solo" | "team";
+  userId: number | null;
+  teamId: number | null;
+  onExit: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -31,13 +68,32 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
   const [breaksTaken, setBreaksTaken] = useLocalStorage("bb-stats-today", 0);
   const [lastBreakDate, setLastBreakDate] = useLocalStorage("bb-last-date", new Date().toDateString());
 
-  // Session State
-  const [timeLeft, setTimeLeft] = useState(workInterval * 60);
-  const [isRunning, setIsRunning] = useState(true);
+  // Session State — lazy-initialised from localStorage when available
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const saved = readTimerState();
+    if (!saved) return workInterval * 60;
+    if (saved.paused && saved.pausedTimeLeft != null) return saved.pausedTimeLeft;
+    if (!saved.paused && saved.targetEndTimestamp != null) {
+      return Math.max(0, Math.round((saved.targetEndTimestamp - Date.now()) / 1000));
+    }
+    return workInterval * 60;
+  });
+
+  const [isRunning, setIsRunning] = useState(() => {
+    const saved = readTimerState();
+    if (!saved) return true;
+    if (saved.paused) return false;
+    if (saved.targetEndTimestamp != null) {
+      return Math.max(0, Math.round((saved.targetEndTimestamp - Date.now()) / 1000)) > 0;
+    }
+    return true;
+  });
+
   const [currentBreakIndex, setCurrentBreakIndex] = useState(0);
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   // Break countdown — independent of the work timer
   const [breakSecondsLeft, setBreakSecondsLeft] = useState(0);
   const [breakStarted, setBreakStarted] = useState(false);
@@ -58,10 +114,12 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
     }
   }, [lastBreakDate, setBreaksTaken, setLastBreakDate]);
 
-  // Handle Work Interval changes
+  // Handle Work Interval changes — reset timer and persist new state
   useEffect(() => {
     if (!isRunning && !isBreakModalOpen) {
-      setTimeLeft(workInterval * 60);
+      const newTime = workInterval * 60;
+      setTimeLeft(newTime);
+      writeTimerState({ targetEndTimestamp: null, paused: true, pausedTimeLeft: newTime });
     }
   }, [workInterval, isRunning, isBreakModalOpen]);
 
@@ -74,6 +132,43 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
       });
     }
   }, [notifications, notificationsSupported, setNotifications]);
+
+  const activeBreakType = enabledBreaks.length > 0
+    ? enabledBreaks[currentBreakIndex % enabledBreaks.length]
+    : "walk";
+
+  const breakInfo = BREAK_TYPES[activeBreakType as BreakType] || BREAK_TYPES.walk;
+
+  const triggerBreak = () => {
+    setIsRunning(false);
+    setBreakSecondsLeft(BREAK_DURATIONS[activeBreakType as BreakType] ?? 120);
+    setBreakStarted(false);
+    void playNotificationSound();
+    if (notificationsSupported && notifications && Notification.permission === "granted") {
+      new Notification(t("breaks." + activeBreakType + ".title"), {
+        body: t("breaks." + activeBreakType + ".desc"),
+      });
+    }
+    setIsBreakModalOpen(true);
+  };
+
+  // On mount: write initial state if none saved, or trigger break if timer expired while tab was closed
+  useEffect(() => {
+    const saved = readTimerState();
+    if (!saved) {
+      writeTimerState({
+        targetEndTimestamp: Date.now() + workInterval * 60 * 1000,
+        paused: false,
+        pausedTimeLeft: null,
+      });
+    } else if (!saved.paused && saved.targetEndTimestamp != null) {
+      const remaining = Math.max(0, Math.round((saved.targetEndTimestamp - Date.now()) / 1000));
+      if (remaining === 0) {
+        triggerBreak();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Timer Effect
   useEffect(() => {
@@ -100,23 +195,19 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
     return () => clearInterval(id);
   }, [isBreakModalOpen, breakStarted]);
 
-  const activeBreakType = enabledBreaks.length > 0
-    ? enabledBreaks[currentBreakIndex % enabledBreaks.length]
-    : "walk";
-
-  const breakInfo = BREAK_TYPES[activeBreakType as BreakType] || BREAK_TYPES.walk;
-
-  const triggerBreak = () => {
+  const handlePause = () => {
+    writeTimerState({ targetEndTimestamp: null, paused: true, pausedTimeLeft: timeLeft });
     setIsRunning(false);
-    setBreakSecondsLeft(BREAK_DURATIONS[activeBreakType as BreakType] ?? 120);
-    setBreakStarted(false);
-    void playNotificationSound();
-    if (notificationsSupported && notifications && Notification.permission === "granted") {
-      new Notification(t("breaks." + activeBreakType + ".title"), {
-        body: t("breaks." + activeBreakType + ".desc"),
-      });
-    }
-    setIsBreakModalOpen(true);
+  };
+
+  const handleResume = () => {
+    writeTimerState({ targetEndTimestamp: Date.now() + timeLeft * 1000, paused: false, pausedTimeLeft: null });
+    setIsRunning(true);
+  };
+
+  const handleExit = () => {
+    clearTimerState();
+    onExit();
   };
 
   const skipBreak = () => nextBreak();
@@ -148,7 +239,9 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
   const nextBreak = () => {
     setCurrentBreakIndex(prev => prev + 1);
-    setTimeLeft(workInterval * 60);
+    const newTime = workInterval * 60;
+    setTimeLeft(newTime);
+    writeTimerState({ targetEndTimestamp: Date.now() + newTime * 1000, paused: false, pausedTimeLeft: null });
     setIsRunning(true);
   };
 
@@ -192,14 +285,24 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
             </button>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => { void resumeContext(); setIsSettingsOpen(true); }}
-          data-testid="button-settings"
-        >
-          <Settings className="w-6 h-6 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsExitConfirmOpen(true)}
+            aria-label={t("timer.exitTitle")}
+          >
+            <LogOut className="w-5 h-5 text-muted-foreground" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => { void resumeContext(); setIsSettingsOpen(true); }}
+            data-testid="button-settings"
+          >
+            <Settings className="w-6 h-6 text-muted-foreground" />
+          </Button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -224,19 +327,22 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
           </div>
         </div>
 
-        <div className="flex gap-4 w-full justify-center max-w-[280px]">
+        <div className="flex gap-3 w-full justify-center max-w-[280px]">
           {isRunning ? (
             <>
-              <Button variant="ghost" onClick={skipBreak} className="w-1/3">
+              <Button variant="ghost" onClick={skipBreak} className="flex-1">
                 {t("timer.skip")}
               </Button>
-              <Button variant="secondary" onClick={() => { void resumeContext(); takeBreakNow(); }} className="w-2/3 gap-2">
-                <Play className="w-5 h-5 fill-current" />
+              <Button variant="outline" onClick={handlePause} className="flex-1">
+                {t("timer.pause")}
+              </Button>
+              <Button variant="secondary" onClick={() => { void resumeContext(); takeBreakNow(); }} className="flex-1 gap-1">
+                <Play className="w-4 h-4 fill-current" />
                 {t("timer.takeNow")}
               </Button>
             </>
           ) : (
-            <Button variant="primary" onClick={() => setIsRunning(true)} className="w-full gap-2">
+            <Button variant="primary" onClick={handleResume} className="w-full gap-2">
               <Play className="w-5 h-5 fill-current" />
               {t("timer.resume")}
             </Button>
@@ -405,6 +511,24 @@ export default function Home({ mode, userId, teamId }: { mode: "solo" | "team", 
 
             <Button variant="primary" className="w-full mt-4" onClick={() => setIsSettingsOpen(false)}>
               {t("settings.save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Exit Confirmation Modal */}
+      <Modal isOpen={isExitConfirmOpen} onClose={() => setIsExitConfirmOpen(false)}>
+        <div className="p-6 flex flex-col gap-5 text-center">
+          <div>
+            <h2 className="text-xl font-black text-foreground mb-2">{t("timer.exitTitle")}</h2>
+            <p className="text-sm text-muted-foreground font-medium">{t("timer.exitMessage")}</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="ghost" className="flex-1" onClick={() => setIsExitConfirmOpen(false)}>
+              {t("timer.exitNo")}
+            </Button>
+            <Button variant="primary" className="flex-1" onClick={handleExit}>
+              {t("timer.exitYes")}
             </Button>
           </div>
         </div>

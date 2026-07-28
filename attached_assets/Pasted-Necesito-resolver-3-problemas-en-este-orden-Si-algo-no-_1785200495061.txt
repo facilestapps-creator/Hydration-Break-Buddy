@@ -1,0 +1,46 @@
+Necesito resolver 3 problemas, en este orden. Si algo no queda claro en el camino, preguntame antes de improvisar una solución. No repitas un mismo chequeo en loop sin cambiar nada — si algo falla dos veces seguidas de la misma forma, parate y contame qué encontraste.
+
+1. DIAGNOSTICAR (SIN CAMBIAR CÓDIGO TODAVÍA) POR QUÉ FALLA EL ENVÍO DE FEEDBACK
+
+El botón de feedback (artifacts/break-buddy/src/components/FeedbackWidget.tsx → POST /api/feedback en artifacts/api-server/src/routes/feedback.ts) está devolviendo error al usuario ("No pudimos enviar tu mensaje") en todas las pantallas donde aparece.
+
+Antes de tocar nada, mirá los logs del servidor del intento real que falló (o generá uno nuevo de prueba vos mismo) y decime el error exacto que tira el catch de ese endpoint. Cosas puntuales para revisar y reportarme:
+- ¿Está cargado el secret GMAIL_APP_PASSWORD en Replit? Si no está, ese es el problema — avisame y yo lo cargo.
+- Si agregamos un rate limit (express-rate-limit) en un pedido anterior, confirmá que no esté bloqueando de más por error de configuración (por ejemplo, contando mal la IP detrás del proxy de Replit — recordá que el proyecto ya usa "trust proxy" en otro lado por este mismo motivo).
+- Cualquier otro error que aparezca en el log de ese momento.
+
+No arregles nada de esto todavía sin decirme primero qué encontraste — puede ser algo que yo resuelva del lado de Secrets sin que haga falta tocar código.
+
+2. AGREGAR UN BOTÓN DE PAUSAR/REANUDAR EN EL TIMER PRINCIPAL
+
+En artifacts/break-buddy/src/pages/Home.tsx, hoy cuando isRunning es true se muestran los botones "Saltar" y "Tomar ahora", y no hay ninguna forma de detener el contador manualmente.
+
+- Agregá un botón "Pausar" junto a los otros dos (los tres visibles mientras isRunning es true). Al tocarlo, hace setIsRunning(false) — nada más, no abre el modal de break.
+- Cuando isRunning es false por haber pausado (no por estar en un break), tiene que verse un botón "Reanudar" que vuelva a poner isRunning en true.
+- Agregá las claves de traducción (timer.pause / timer.resume o las que ya existan de forma similar) a los 12 idiomas de artifacts/break-buddy/src/i18n/index.ts.
+
+3. PERSISTIR EL CONTADOR AL CERRAR/REABRIR LA PESTAÑA, Y AGREGAR UNA FORMA DE VOLVER A LA PANTALLA DE INICIO
+
+Hoy pasan dos cosas relacionadas que hay que arreglar juntas:
+
+a) timeLeft es un useState que se reinicia al valor completo del intervalo cada vez que se recarga la página — si alguien cierra la pestaña sin querer mientras el timer corre, pierde todo el progreso.
+
+b) No hay ningún botón dentro de Home que permita volver a la pantalla de selección de modo (ModeSelection). El mode queda guardado en localStorage indefinidamente, así que la única forma de "reiniciar" hoy es borrar caché a mano. Cuando alguien cierra la pestaña por un rato largo y vuelve, cae directo en el timer corriendo, sin pasar por ninguna pantalla de inicio.
+
+Quiero esto:
+
+- Guardá el estado del timer principal en localStorage bajo una sola clave (ej. "bb-timer-state"), con esta forma: { targetEndTimestamp: number | null, paused: boolean, pausedTimeLeft: number | null }. Actualizá este valor en localStorage cada vez que: arranca a correr el timer, se pausa, se reanuda, o se resetea a un nuevo intervalo (después de un break, o si cambian la configuración de minutos).
+  - Mientras corre: targetEndTimestamp = Date.now() + timeLeft*1000, paused: false.
+  - Al pausar: paused: true, pausedTimeLeft: el timeLeft actual, targetEndTimestamp: null.
+  - Al montar Home, si hay un bb-timer-state guardado: si paused es true, restaurá isRunning=false y timeLeft=pausedTimeLeft. Si paused es false y hay targetEndTimestamp, calculá timeLeft = Math.max(0, Math.round((targetEndTimestamp - Date.now())/1000)) — si da 0, disparar el break directamente (triggerBreak), como si hubiera llegado el momento mientras la pestaña estaba cerrada.
+  - Si no hay nada guardado (primera vez), comportamiento actual (arranca corriendo con el intervalo completo).
+
+- Agregá un botón/ícono (por ejemplo cerca del ícono de Settings) tipo "Volver al inicio" o "Cambiar modo", que:
+  - Limpie el bb-timer-state de localStorage.
+  - Llame a un callback nuevo onExit que le pases como prop a Home desde App.tsx, que haga lo mismo que ya hace handleBack() en App.tsx (setMode(null)) para volver a la pantalla de ModeSelection.
+  - Agregá una confirmación simple antes de ejecutarlo (un modal o toast tipo "¿Seguro que querés salir? Se perderá el progreso del timer actual"), para que no se toque por error.
+  - Agregá las claves de traducción necesarias a los 12 idiomas.
+
+No toques la lógica del countdown del break (el modal que se abre al llegar a 0) ni el flujo de pagos ni el modo gratis de lanzamiento — esto es solo sobre el timer principal de "tiempo hasta el break" y la navegación de vuelta al inicio.
+
+Al terminar los puntos 2 y 3, corré pnpm run typecheck y confirmame que pasa limpio. Para el punto 1, contame primero lo que encontraste en los logs antes de aplicar ningún fix.

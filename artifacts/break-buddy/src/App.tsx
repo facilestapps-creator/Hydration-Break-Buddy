@@ -86,6 +86,7 @@ function AppShell() {
       mode={effectiveMode as "solo" | "team"}
       userId={storedUserId}
       teamId={teamId}
+      onExit={handleBack}
     />
   );
 }
