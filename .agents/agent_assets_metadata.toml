@@ -24,3 +24,9 @@ id = "z1uTdxB9U_fyMsq__vT9J"
 uri = "file://break-buddy-eval.zip"
 type = "unspecified"
 title = "Break Buddy — código fuente para evaluación"
+
+[[outputs]]
+id = "FEiVvDfCDNHYd9rZ-dqT7"
+uri = "file://break-buddy-eval-v2.zip"
+type = "unspecified"
+title = "Break Buddy — evaluación externa v2"
