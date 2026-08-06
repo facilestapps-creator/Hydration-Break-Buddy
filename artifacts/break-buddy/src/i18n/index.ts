@@ -94,7 +94,7 @@ const resources = {
           cancelled: "Subscription cancelled",
           reactivate: "Reactivate",
         },
-        freeLaunchBanner: "🎉 Free during launch — no charge until August 7, 2026",
+        freeLaunchBanner: "🎉 Free during launch — no charge until August 14, 2026",
       },
       timer: {
         untilBreak: "Until Next Break",
@@ -229,7 +229,7 @@ const resources = {
           cancelled: "Suscripción cancelada",
           reactivate: "Reactivar",
         },
-        freeLaunchBanner: "🎉 Gratis durante el lanzamiento — sin cargo hasta el 7 de agosto de 2026",
+        freeLaunchBanner: "🎉 Gratis durante el lanzamiento — sin cargo hasta el 14 de agosto de 2026",
       },
       timer: {
         untilBreak: "Hasta el Siguiente Descanso",
@@ -351,7 +351,7 @@ const resources = {
           failed: "O pagamento não foi concluído.",
           retry: "Tentar Novamente",
         },
-        freeLaunchBanner: "🎉 Grátis no lançamento — sem cobrança até 7 de agosto de 2026",
+        freeLaunchBanner: "🎉 Grátis no lançamento — sem cobrança até 14 de agosto de 2026",
       },
       timer: {
         untilBreak: "Até a Próxima Pausa",
@@ -465,7 +465,7 @@ const resources = {
           failed: "Le paiement n'a pas abouti.",
           retry: "Réessayer",
         },
-        freeLaunchBanner: "🎉 Gratuit pendant le lancement — sans frais jusqu'au 7 août 2026",
+        freeLaunchBanner: "🎉 Gratuit pendant le lancement — sans frais jusqu'au 14 août 2026",
       },
       timer: {
         untilBreak: "Jusqu'à la Prochaine Pause",
@@ -579,7 +579,7 @@ const resources = {
           failed: "Zahlung wurde nicht abgeschlossen.",
           retry: "Erneut versuchen",
         },
-        freeLaunchBanner: "🎉 Kostenlos zum Launch — keine Kosten bis 7. August 2026",
+        freeLaunchBanner: "🎉 Kostenlos zum Launch — keine Kosten bis 14. August 2026",
       },
       timer: {
         untilBreak: "Bis zur nächsten Pause",
@@ -693,7 +693,7 @@ const resources = {
           failed: "Il pagamento non è stato completato.",
           retry: "Riprova",
         },
-        freeLaunchBanner: "🎉 Gratis durante il lancio — nessun costo fino al 7 agosto 2026",
+        freeLaunchBanner: "🎉 Gratis durante il lancio — nessun costo fino al 14 agosto 2026",
       },
       timer: {
         untilBreak: "Alla Prossima Pausa",
@@ -807,7 +807,7 @@ const resources = {
           failed: "Betaling is niet voltooid.",
           retry: "Opnieuw Proberen",
         },
-        freeLaunchBanner: "🎉 Gratis tijdens de lancering — geen kosten tot 7 augustus 2026",
+        freeLaunchBanner: "🎉 Gratis tijdens de lancering — geen kosten tot 14 augustus 2026",
       },
       timer: {
         untilBreak: "Tot Volgende Pauze",
@@ -921,7 +921,7 @@ const resources = {
           failed: "支付未完成。",
           retry: "重试",
         },
-        freeLaunchBanner: "🎉 发布期间免费 — 2026年8月7日前无需付费",
+        freeLaunchBanner: "🎉 发布期间免费 — 2026年8月14日前无需付费",
       },
       timer: {
         untilBreak: "距离下次休息",
@@ -1035,7 +1035,7 @@ const resources = {
           failed: "支払いが完了しませんでした。",
           retry: "もう一度試す",
         },
-        freeLaunchBanner: "🎉 ローンチ期間中無料 — 2026年8月7日まで無料",
+        freeLaunchBanner: "🎉 ローンチ期間中無料 — 2026年8月14日まで無料",
       },
       timer: {
         untilBreak: "次の休憩まで",
@@ -1149,7 +1149,7 @@ const resources = {
           failed: "결제가 완료되지 않았습니다.",
           retry: "다시 시도",
         },
-        freeLaunchBanner: "🎉 출시 기간 무료 — 2026년 8월 7일까지 무료",
+        freeLaunchBanner: "🎉 출시 기간 무료 — 2026년 8월 14일까지 무료",
       },
       timer: {
         untilBreak: "다음 휴식까지",
@@ -1263,7 +1263,7 @@ const resources = {
           failed: "لم يكتمل الدفع.",
           retry: "إعادة المحاولة",
         },
-        freeLaunchBanner: "🎉 مجاني خلال الإطلاق — بدون رسوم حتى 7 أغسطس 2026",
+        freeLaunchBanner: "🎉 مجاني خلال الإطلاق — بدون رسوم حتى 14 أغسطس 2026",
       },
       timer: {
         untilBreak: "حتى الاستراحة القادمة",
@@ -1377,7 +1377,7 @@ const resources = {
           failed: "भुगतान पूरा नहीं हुआ।",
           retry: "फिर प्रयास करें",
         },
-        freeLaunchBanner: "🎉 लॉन्च के दौरान मुफ़्त — 7 अगस्त 2026 तक कोई शुल्क नहीं",
+        freeLaunchBanner: "🎉 लॉन्च के दौरान मुफ़्त — 14 अगस्त 2026 तक कोई शुल्क नहीं",
       },
       timer: {
         untilBreak: "अगले ब्रेक तक",
