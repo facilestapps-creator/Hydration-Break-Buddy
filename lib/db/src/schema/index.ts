@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -63,6 +63,19 @@ export const paymentsTable = pgTable("payments", {
 export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof paymentsTable.$inferSelect;
+
+// Analytics sessions table (internal visit tracking)
+export const analyticsSessionsTable = pgTable("analytics_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionId: text("session_id").notNull().unique(),
+  ipHash: text("ip_hash").notNull(),
+  userAgent: text("user_agent"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  pingCount: integer("ping_count").notNull().default(1),
+});
+
+export type AnalyticsSession = typeof analyticsSessionsTable.$inferSelect;
 
 // Sessions table (server-side session tokens for auth)
 export const sessionsTable = pgTable("sessions", {

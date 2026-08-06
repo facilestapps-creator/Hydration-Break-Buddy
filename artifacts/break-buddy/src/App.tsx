@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initAnalytics } from "./lib/analytics";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { AnimatePresence } from "framer-motion";
 import Home from "./pages/Home";
@@ -110,6 +111,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>

@@ -34,3 +34,16 @@ export const relaxedLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
 });
+
+/**
+ * Analytics limiter for heartbeat pings:
+ * POST /analytics/ping — 120 requests per minute per IP.
+ * High ceiling to accommodate frequent heartbeats from multiple tabs.
+ */
+export const analyticsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
