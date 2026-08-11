@@ -1,0 +1,246 @@
+Necesito que implementes únicamente esta primera fase de endurecimiento de seguridad
+y pagos. No hagas rediseños visuales, no agregues cuentas/login por email, no
+modifiques analítica ni implementes downgrade automático de miembros. Si algo no
+está cubierto acá o no te queda claro cómo resolverlo, preguntame antes de
+improvisar. Si un chequeo (typecheck, build, test) falla, arreglalo por causa raíz
+una vez — no entres en loop corriendo lo mismo sin cambiar nada; si tras un par de
+intentos razonables no se resuelve, parate y contame qué encontraste.
+
+Contexto de producto:
+- Mercado Pago usa exclusivamente credenciales de PRODUCCIÓN (MP_ENV=production).
+  Los secretos viven solo en variables de entorno del servidor: nunca hardcodeados,
+  nunca expuestos al frontend, nunca en logs.
+- NO asumas que la base está vacía. Puede haber equipos y usuarios reales ya
+  creados (hubo un período de lanzamiento gratis). Cualquier cambio de schema debe
+  ser seguro para datos existentes — ver el punto 3 sobre cómo migrar ownerUserId.
+- Cada persona usa un único equipo por sesión (ya es así hoy vía usersTable.teamId).
+- Cada equipo tiene un único creador/administrador (a implementar).
+- Todos los miembros de un equipo pueden ver el ranking de SU equipo, no de otros.
+- Solo el creador puede hacer acciones administrativas (logo, código de invitación,
+  pagos/suscripción).
+- Gracia de pago: 24 horas, una única vez por ciclo de cobro, cuando un pago falla
+  o vence. Implementar backend/modelo; la interfaz visual de facturación puede
+  quedar para una fase posterior.
+
+Antes de tocar código: recorré la estructura real del repo (pnpm workspace,
+artifacts/api-server, artifacts/break-buddy, lib/db, lib/api-spec, lib/api-zod,
+lib/api-client-react) y usá los nombres reales que ya existen — no los inventes.
+
+═══════════════════════════════════════════════════════════════════
+0. TESTS AUTOMATIZADOS (hacer esto primero, antes de los fixes)
+═══════════════════════════════════════════════════════════════════
+
+Agregar vitest como dependencia de artifacts/api-server (devDependency). Crear un
+script "test" en artifacts/api-server/package.json y sumarlo como paso del build
+raíz (pnpm run build ya corre typecheck primero; agregar test ahí también, o un
+script nuevo "pnpm run verify" que corra typecheck + test — decidí vos cuál es más
+prolijo dado el package.json raíz actual, y contame cuál elegiste y por qué).
+
+Los tests van a cubrir los 9 casos del punto 5 de este documento. Escribilos a
+medida que implementás cada fix (no todos al final), usando supertest o llamadas
+directas a los routers de Express con una base de datos de test (revisá si conviene
+una DB de test separada vía DATABASE_URL_TEST, o mockear drizzle — elegí la opción
+más simple que ya encaje con cómo está armado el proyecto hoy, y contame la
+decisión).
+
+═══════════════════════════════════════════════════════════════════
+1. CONFIGURACIÓN DE PRODUCCIÓN — fail closed en vez de fallback silencioso
+═══════════════════════════════════════════════════════════════════
+
+En artifacts/api-server/src/lib/mp-client.ts, getMpToken() hoy devuelve "" si el
+env var no está seteado. Cambiar esto: si en producción (MP_ENV=production) falta
+MP_ACCESS_TOKEN_PROD, la función debe lanzar un error claro en el momento en que se
+llama (no devolver string vacío silenciosamente). En cualquier ruta que llame a
+getMpToken(), atrapar ese error y devolver 500 con un mensaje genérico al cliente
+(sin exponer detalles del secreto faltante), pero loguear claramente en el server
+qué variable falta.
+
+CORS (artifacts/api-server/src/app.ts) y cookies (artifacts/api-server/src/routes/
+users.ts) ya están bien configurados — CORS con whitelist explícita vía
+ALLOWED_ORIGIN/REPLIT_DOMAINS, cookies con httpOnly/secure condicional/sameSite=lax
+(lax es correcto acá porque el redirect de MP vuelve por navegación top-level, no
+por fetch cross-site — no cambiar a "strict", rompería ese flujo). No tocar estas
+dos cosas salvo que encuentres algo roto al revisar.
+
+Agregar un límite de tamaño a los JSON bodies en app.ts:
+  app.use(express.json({ limit: "100kb" }))
+(y lo mismo para express.urlencoded si aplica).
+
+═══════════════════════════════════════════════════════════════════
+2. AUTORIZACIÓN — usuarios y datos personales
+═══════════════════════════════════════════════════════════════════
+
+En artifacts/api-server/src/routes/users.ts:
+
+- GET /users/:userId → agregar requireAuth. Un usuario solo puede ver su propio
+  perfil (req.userId === userId del path) O el de un compañero de su MISMO equipo
+  (usersTable.teamId coincide). Si no se cumple ninguna: 403.
+- GET /users/:userId/stats → misma regla que arriba.
+
+═══════════════════════════════════════════════════════════════════
+3. AUTORIZACIÓN — equipos, roles y códigos de invitación
+═══════════════════════════════════════════════════════════════════
+
+3.1 Agregar columna ownerUserId a teamsTable (lib/db/src/schema/index.ts),
+    referenciando usersTable.id. IMPORTANTE — migración segura para datos
+    existentes:
+    a) Agregarla como NULLABLE primero.
+    b) Escribir un script de backfill (puede ser un endpoint temporal en
+       routes/dev.ts, gateado por NODE_ENV !== "production", o un script en
+       scripts/src/) que recorra los equipos existentes y les asigne como
+       ownerUserId al miembro con menor createdAt de ese equipo (el más antiguo).
+    c) Correr el backfill.
+    d) Recién después, si querés, migrar la columna a NOT NULL — contame antes de
+       hacer este último paso si el backfill encontró algún equipo sin miembros
+       (caso borde a resolver a mano).
+    Al crear un equipo nuevo (POST /teams en teams.ts), setear ownerUserId = el
+    creador.
+
+3.2 Crear un middleware o función reutilizable requireTeamOwner(teamId) — NO
+    copiar la lógica de "sos el owner" en cada ruta. Usarlo en:
+    - PATCH /teams/:teamId/logo (ya existe, hoy solo chequea membresía — ajustar a
+      chequear ownership)
+    - El endpoint nuevo de regenerar invite code (ver 3.4)
+    - Cualquier acción administrativa futura
+
+3.3 GET /teams/:teamId/leaderboard: agregar chequeo de que req.userId pertenece a
+    ese mismo teamId (usersTable.teamId === teamId del path). Si no pertenece:
+    403. Si el equipo no existe: 404 sin filtrar más info de la necesaria.
+
+3.4 GET /teams/:teamId (el endpoint público usado hoy por LeaderboardModal.tsx vía
+    useGetTeam para traer nombre/logo): sacar inviteCode del GetTeamResponse en
+    openapi.yaml y regenerar el codegen (pnpm --filter @workspace/api-spec run
+    codegen). El inviteCode solo debe viajar en las respuestas de POST /teams y
+    POST /teams/join (donde ya se necesita para mostrarlo una vez al crear).
+
+    Agregar un endpoint nuevo: GET /teams/:teamId/invite-code, protegido con
+    requireTeamOwner — devuelve el código actual solo al dueño.
+
+    Agregar: POST /teams/:teamId/invite-code/regenerate, protegido con
+    requireTeamOwner — genera un código nuevo (misma función generateInviteCode()
+    que ya existe), lo guarda, invalida el anterior, lo devuelve.
+
+    ⚠️ IMPORTANTE — decíselo a Lucho en el resumen final: como GET /teams/:teamId
+    devolvió el inviteCode públicamente desde el lanzamiento, cualquier código
+    existente debe considerarse potencialmente visto. Recomendar correr el
+    regenerate para todos los equipos existentes una vez desplegado este fix
+    (se puede hacer con un loop simple sobre teamsTable, o a mano equipo por
+    equipo si son pocos — contame cuántos equipos hay y sugerime la forma más
+    simple).
+
+3.5 POST /teams/join: agregar un rate limiter dedicado (nuevo, ej. 10 intentos /
+    10 min por IP — reutilizar el patrón de lib/rate-limiters.ts, agregar uno
+    llamado joinTeamLimiter).
+
+3.6 Concurrencia del cupo de equipo (teams.ts, POST /teams/join): hoy se cuenta
+    memberCount y después se hace el UPDATE en pasos separados. Envolver el
+    chequeo de cupo + el UPDATE de usersTable.teamId en una sola transacción de
+    Drizzle (db.transaction), igual que ya se hace en POST /teams con el
+    paymentToken.
+
+═══════════════════════════════════════════════════════════════════
+4. AUTORIZACIÓN — estado de pago
+═══════════════════════════════════════════════════════════════════
+
+GET /payments/:token/status (payments.ts): agregar requireAuth. Validar que
+payment.userId === req.userId, O que req.userId sea el ownerUserId del equipo
+asociado al pago si ya existe un team ligado (mpPreapprovalId cruzado con
+teamsTable). Si no corresponde: 403, sin revelar el estado real del pago en el
+cuerpo de la respuesta.
+
+═══════════════════════════════════════════════════════════════════
+5. MERCADO PAGO — webhook fail-closed, idempotencia, estados, gracia
+═══════════════════════════════════════════════════════════════════
+
+Archivo: artifacts/api-server/src/routes/webhooks.ts
+
+5.1 Fail closed obligatorio: quitar el modo "si no hay headers de firma, dejar
+    pasar y verificar contra la API de MP". A partir de ahora, en producción:
+    - Si falta MP_WEBHOOK_SECRET: rechazar con 401.
+    - Si faltan x-signature o x-request-id: rechazar con 401.
+    - Si la firma no valida (comparación seguro, ej. crypto.timingSafeEqual):
+      rechazar con 401.
+    Esto es un cambio de comportamiento respecto a lo documentado en
+    .agents/memory/mp-payment-integration.md (que explica por qué se había hecho
+    "allow through" para IPN). Antes de aplicar este cambio, confirmá en el panel
+    de Mercado Pago que el webhook de la cuenta de producción está registrado
+    como "webhook del dashboard" (con firma) y NO como notification_url de tipo
+    IPN — si sigue siendo IPN puro, este cambio rompe la recepción de webhooks
+    reales. Decime qué encontraste antes de aplicar el fail-closed si tenés dudas.
+
+5.2 Idempotencia: crear tabla nueva processed_webhook_events (id del evento de MP
+    como clave única, processedAt). Antes de aplicar cualquier cambio de estado,
+    intentar insertar el eventId en esta tabla dentro de la misma transacción que
+    actualiza paymentsTable/teamsTable; si ya existe (conflicto de unicidad),
+    responder 200 sin repetir ningún cambio.
+
+5.3 Estados internos: agregar los estados que falten a
+    teamsTable.subscriptionStatus (hoy: active | paused | cancelled): sumar
+    "past_due" y "grace_period". Mapear explícitamente cada status de MP
+    (authorized, paused, cancelled, y los relevantes de preapproval_payment) a
+    estos estados internos — no asumir "activo" para nada no reconocido.
+
+5.4 Período de gracia — 24hs, una vez por ciclo:
+    - Agregar a teamsTable: graceStartedAt, graceEndsAt, graceUsedForCycle
+      (puede ser el id/fecha del ciclo/preapproval al que corresponde, para saber
+      si ya se usó).
+    - Cuando MP informa un pago fallido/vencido del ciclo: si graceUsedForCycle no
+      corresponde a este ciclo, iniciar gracia (graceStartedAt = ahora,
+      graceEndsAt = ahora + 24h, subscriptionStatus = "grace_period",
+      graceUsedForCycle = este ciclo). Si ya se usó para este ciclo: pasar
+      directo a "past_due", sin gracia nueva.
+    - Un webhook repetido del mismo fallo NUNCA debe correr graceEndsAt hacia
+      adelante (por eso la idempotencia del punto 5.2 tiene que resolverse antes).
+    - Si se regulariza el pago antes de graceEndsAt: subscriptionStatus =
+      "active", limpiar los campos de gracia.
+    - Un job o chequeo (puede ser al momento de POST /breaks, no hace falta un
+      cron todavía) debe tratar "grace_period" vigente igual que "active" para
+      permitir loguear breaks, y bloquear si graceEndsAt ya pasó.
+    - En breaks.ts, el chequeo actual solo bloquea "paused"/"cancelled" — ampliar
+      para bloquear todo lo que no sea "active" o "grace_period vigente".
+
+5.5 Fechas reales: al procesar subscription_authorized_payment o
+    subscription_preapproval, usar la fecha de próximo cobro que informe la API
+    de MP si está disponible en el payload (revisar qué campo trae realmente la
+    respuesta de /preapproval o /preapproval_payment — no lo inventes, consultalo
+    en la doc de MP o en la respuesta real durante testing). Si no está
+    disponible en un caso puntual, dejarlo documentado con un comentario en el
+    código explicando qué se usó en su lugar — no calcular "+1 mes" silenciosamente
+    como hoy.
+
+═══════════════════════════════════════════════════════════════════
+6. TESTS A ESCRIBIR (vitest, ver punto 0)
+═══════════════════════════════════════════════════════════════════
+
+1. Usuario externo no puede ver ranking de otro equipo (403).
+2. Miembro puede ver el ranking de su propio equipo (200).
+3. Miembro no-owner no puede cambiar el logo ni ver el código de invitación (403).
+4. GET /payments/:token/status no pertenece a otro usuario (403).
+5. Webhook sin firma es rechazado (401).
+6. Webhook con firma inválida es rechazado (401).
+7. Webhook repetido (mismo eventId) no duplica efectos.
+8. La gracia dura 24h y no se reinicia para el mismo ciclo aunque llegue el mismo
+   webhook de nuevo.
+9. Acceso a /breaks está permitido durante gracia vigente y bloqueado una vez
+   vencida.
+
+═══════════════════════════════════════════════════════════════════
+7. ENTREGABLE FINAL
+═══════════════════════════════════════════════════════════════════
+
+Al terminar:
+1. Listá los archivos modificados/creados y la migración (columna por columna,
+   con el resultado del backfill de ownerUserId: cuántos equipos se actualizaron).
+2. Explicá cada cambio en lenguaje no técnico, uno por uno.
+3. Listá exactamente qué variables de entorno hay que confirmar/crear en Replit
+   (sin mostrar valores secretos): las ya existentes que deben seguir seteadas
+   (MP_ENV, MP_ACCESS_TOKEN_PROD, MP_WEBHOOK_SECRET, MP_PREAPPROVAL_PLAN_ID_*_PROD)
+   y cualquiera nueva que hayas necesitado.
+4. Corré: pnpm run typecheck, pnpm run test, pnpm run build. Mostrame el output
+   real de los tres comandos, no un resumen.
+5. Recordame explícitamente lo del punto 3.4: regenerar los invite codes
+   existentes una vez desplegado.
+6. Cualquier decisión que hayas tenido que tomar sin que estuviera 100% clara en
+   este prompt (por ejemplo la estructura exacta de los tests, o si el webhook de
+   producción está en modo IPN o dashboard), contámela antes de dar la fase por
+   terminada.
