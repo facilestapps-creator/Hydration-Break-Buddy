@@ -1,5 +1,5 @@
 module.exports = async (req, res) => {
   const { default: app } = await import("../artifacts/api-server/dist/index.mjs");
-  req.url = "/api" + (req.url === "/" ? "" : req.url);
+  req.url = req.url.startsWith("/api") ? req.url : "/api" + req.url;
   return app(req, res);
 };
