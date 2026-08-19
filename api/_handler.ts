@@ -23,10 +23,12 @@ export function createApiHandler(router: Router): RequestHandler {
     pinoHttp({
       logger,
       serializers: {
-        req(req: Request) {
+        // pino-http receives Node request/response objects augmented at runtime.
+        // Keep these serializers deliberately loose to avoid Express type-version coupling.
+        req(req: any) {
           return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
         },
-        res(res: Response) {
+        res(res: any) {
           return { statusCode: res.statusCode };
         },
       },
