@@ -1,6 +1,11 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { type RequestHandler, type Router } from "express";
+import express, {
+  type Request,
+  type RequestHandler,
+  type Response,
+  type Router,
+} from "express";
 import pinoHttp from "pino-http";
 import { logger } from "../artifacts/api-server/src/lib/logger";
 
@@ -18,10 +23,10 @@ export function createApiHandler(router: Router): RequestHandler {
     pinoHttp({
       logger,
       serializers: {
-        req(req) {
+        req(req: Request) {
           return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
         },
-        res(res) {
+        res(res: Response) {
           return { statusCode: res.statusCode };
         },
       },
@@ -29,7 +34,10 @@ export function createApiHandler(router: Router): RequestHandler {
   );
   app.use(
     cors({
-      origin(origin, callback) {
+      origin(
+        origin: string | undefined,
+        callback: (error: Error | null, allow?: boolean) => void,
+      ) {
         // Vercel/MP server-to-server calls do not include Origin.
         if (!origin || origin === ALLOWED_ORIGIN) {
           callback(null, true);
