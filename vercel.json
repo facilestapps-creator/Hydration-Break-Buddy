@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter @workspace/break-buddy build",
+  "outputDirectory": "artifacts/break-buddy/dist/public",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
