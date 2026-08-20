@@ -9,6 +9,7 @@ import configRouter from "./config";
 import feedbackRouter from "./feedback";
 import analyticsRouter from "./analytics";
 import devRouter from "./dev";
+import diagnosticsRouter from "./diagnostics";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(paymentsRouter);
 router.use(webhooksRouter);
 router.use(feedbackRouter);
 router.use(analyticsRouter);
+router.use(diagnosticsRouter);
 if (process.env.NODE_ENV !== "production") {
   router.use(devRouter);
 }
