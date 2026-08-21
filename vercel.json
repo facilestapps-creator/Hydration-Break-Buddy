@@ -3,4 +3,5 @@
   "buildCommand": "pnpm --filter @workspace/break-buddy build && pnpm --filter @workspace/api-server build",
   "outputDirectory": "artifacts/break-buddy/dist/public",
   "installCommand": "pnpm install --frozen-lockfile"
+  "rewrites": [ { "source": "/api/(.*)", "destination": "/api/[...path]" } ]
 }
