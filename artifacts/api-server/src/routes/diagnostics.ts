@@ -19,10 +19,18 @@ router.get("/diagnostics/users-team-id", async (req, res) => {
   const result: {
     schemaInfo: unknown;
     insertTest: { ok: boolean; error?: string; errorCode?: string; errorDetail?: string };
+    databaseUrlHost: string;
   } = {
     schemaInfo: null,
     insertTest: { ok: false },
+    databaseUrlHost: "unknown",
   };
+
+  try {
+    result.databaseUrlHost = new URL(process.env.DATABASE_URL ?? "").hostname;
+  } catch {
+    result.databaseUrlHost = "could-not-parse";
+  }
 
   try {
     const schemaRows = await db.execute(sql`
