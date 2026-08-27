@@ -15,5 +15,9 @@
   "devDependencies": {
     "prettier": "^3.9.4",
     "typescript": "~5.9.3"
+  },
+  "name": "@workspace/root",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
   }
 }
