@@ -10,14 +10,10 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "nodemailer": "^6.9.0"
   },
   "devDependencies": {
     "prettier": "^3.9.4",
     "typescript": "~5.9.3"
-  },
-  "name": "@workspace/root",
-  "dependencies": {
-    "nodemailer": "^6.9.0"
   }
 }
