@@ -17,4 +17,6 @@ export interface Team {
   /** @nullable */
   logoUrl?: string | null;
   nearMemberLimit: boolean;
+  /** @nullable */
+  graceExpiresAt?: string | null;
 }

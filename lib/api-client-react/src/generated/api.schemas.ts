@@ -46,6 +46,8 @@ export interface Team {
   /** @nullable */
   logoUrl?: string | null;
   nearMemberLimit: boolean;
+  /** @nullable */
+  graceExpiresAt?: string | null;
 }
 
 export type TeamInputPlan = typeof TeamInputPlan[keyof typeof TeamInputPlan];

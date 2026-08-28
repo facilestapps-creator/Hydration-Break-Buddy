@@ -367,6 +367,8 @@ components:
           type: ["string", "null"]
         nearMemberLimit:
           type: boolean
+        graceExpiresAt:
+          type: ["string", "null"]
 
     TeamInput:
       type: object

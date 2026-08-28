@@ -283,8 +283,14 @@ router.get("/teams/:teamId", requireAuth, async (req, res): Promise<void> => {
   }
 
   const team = teamRows[0];
-  const memberCount = await getTeamMemberCount(teamId);
+    const memberCount = await getTeamMemberCount(teamId);
   const nearMemberLimit = team.plan === "team" && team.memberLimit !== null && memberCount >= team.memberLimit - 1;
+
+  const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
+  const graceExpiresAt =
+    team.subscriptionStatus === "paused" && team.pastDueSince
+      ? new Date(team.pastDueSince.getTime() + GRACE_PERIOD_MS).toISOString()
+      : null;
 
   res.json(GetTeamResponse.parse({
     id: team.id,
@@ -296,6 +302,7 @@ router.get("/teams/:teamId", requireAuth, async (req, res): Promise<void> => {
     subscriptionStatus: team.subscriptionStatus,
     logoUrl: team.logoUrl ?? null,
     nearMemberLimit,
+    graceExpiresAt,
   }));
 });
 

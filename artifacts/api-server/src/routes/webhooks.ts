@@ -94,12 +94,24 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
         : preapproval.status === "cancelled" ? "cancelled"
         : null;
 
-      if (newSubStatus) {
+            if (newSubStatus) {
         const updateData: Record<string, unknown> = { subscriptionStatus: newSubStatus };
         if (newSubStatus === "active") {
           const periodEnd = new Date();
           periodEnd.setMonth(periodEnd.getMonth() + 1);
           updateData.currentPeriodEnd = periodEnd;
+          // Payment recovered — clear the grace-period clock.
+          updateData.pastDueSince = null;
+        } else if (newSubStatus === "paused") {
+          // Only stamp the clock the first time we see the failure — if MP
+          // retries this same webhook, we must not reset the 24h countdown.
+          const [team] = await db
+            .select({ pastDueSince: teamsTable.pastDueSince })
+            .from(teamsTable)
+            .where(eq(teamsTable.mpPreapprovalId, preapprovalId));
+          if (team && !team.pastDueSince) {
+            updateData.pastDueSince = new Date();
+          }
         }
         await db
           .update(teamsTable)

@@ -90,8 +90,9 @@ const resources = {
         },
         subscriptionStatus: {
           active: "Subscription active",
-          paused: "Subscription paused — renew to unlock breaks",
+           paused: "Subscription paused — renew to unlock breaks",
           cancelled: "Subscription cancelled",
+          graceWarning: "Payment failed — you have {{hours}}h left before breaks are locked",
           reactivate: "Reactivate",
         },
         freeLaunchBanner: "🎉 Free during launch — no charge until August 14, 2026",
@@ -227,6 +228,7 @@ const resources = {
           active: "Suscripción activa",
           paused: "Suscripción pausada — renovar para desbloquear descansos",
           cancelled: "Suscripción cancelada",
+          graceWarning: "El pago no pudo procesarse — tenés {{hours}}hs antes de perder acceso a los descansos",
           reactivate: "Reactivar",
         },
         freeLaunchBanner: "🎉 Gratis durante el lanzamiento — sin cargo hasta el 14 de agosto de 2026",

@@ -2,7 +2,7 @@ import { Modal } from "./Modal";
 import { useTranslation } from "react-i18next";
 import { useGetTeamLeaderboard, getGetTeamLeaderboardQueryKey, useGetTeam, getGetTeamQueryKey, usePatchTeamLogo } from "@workspace/api-client-react";
 import { Trophy, Copy, Check, AlertCircle, Loader2, Image, AlertTriangle, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
@@ -61,7 +61,18 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
     );
   };
 
-  const subscriptionBad = team && (team.subscriptionStatus === "paused" || team.subscriptionStatus === "cancelled");
+    // Tick every minute so the grace-period countdown stays accurate while the modal is open.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceTick((n) => n + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const graceMsLeft = team?.graceExpiresAt ? new Date(team.graceExpiresAt).getTime() - Date.now() : 0;
+  const graceActive = team?.subscriptionStatus === "paused" && !!team.graceExpiresAt && graceMsLeft > 0;
+  const graceHoursLeft = Math.max(1, Math.ceil(graceMsLeft / (60 * 60 * 1000)));
+
+  const subscriptionBad = team && (team.subscriptionStatus === "cancelled" || (team.subscriptionStatus === "paused" && !graceActive));
   const logoUrl = leaderboard?.logoUrl ?? team?.logoUrl;
 
   return (
@@ -112,6 +123,14 @@ export function LeaderboardModal({ isOpen, teamId, onClose }: { isOpen: boolean,
                 ? t("onboarding.subscriptionStatus.paused")
                 : t("onboarding.subscriptionStatus.cancelled")}
             </div>
+          </div>
+        )}
+
+                {/* Grace-period warning banner (payment failed, still within the 24h window) */}
+        {graceActive && (
+          <div className="flex items-start gap-3 rounded-2xl px-4 py-3 mb-4 text-sm font-bold border bg-orange-50 border-orange-200 text-orange-700">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{t("onboarding.subscriptionStatus.graceWarning", { hours: graceHoursLeft })}</span>
           </div>
         )}
 

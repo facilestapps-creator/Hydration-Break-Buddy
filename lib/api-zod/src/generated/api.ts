@@ -100,7 +100,8 @@ export const CreateTeamResponse = zod.object({
   "plan": zod.string(),
   "subscriptionStatus": zod.string(),
   "logoUrl": zod.string().nullish(),
-  "nearMemberLimit": zod.boolean()
+  "nearMemberLimit": zod.boolean(),
+  "graceExpiresAt": zod.string().nullish()
 })
 
 
@@ -120,7 +121,8 @@ export const JoinTeamResponse = zod.object({
   "plan": zod.string(),
   "subscriptionStatus": zod.string(),
   "logoUrl": zod.string().nullish(),
-  "nearMemberLimit": zod.boolean()
+  "nearMemberLimit": zod.boolean(),
+  "graceExpiresAt": zod.string().nullish()
 })
 
 
@@ -140,7 +142,8 @@ export const GetTeamResponse = zod.object({
   "plan": zod.string(),
   "subscriptionStatus": zod.string(),
   "logoUrl": zod.string().nullish(),
-  "nearMemberLimit": zod.boolean()
+  "nearMemberLimit": zod.boolean(),
+  "graceExpiresAt": zod.string().nullish()
 })
 
 

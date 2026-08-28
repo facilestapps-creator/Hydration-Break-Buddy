@@ -12,6 +12,7 @@ export const teamsTable = pgTable("teams", {
   logoUrl: text("logo_url"),                                      // nullable, company plan only
   subscriptionStatus: text("subscription_status").notNull().default("active"), // pending | active | paused | cancelled | past_due
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }), // nullable
+  pastDueSince: timestamp("past_due_since", { withTimezone: true }),        // nullable — set when a payment first fails, cleared on success. Used for the 24h grace window.
   mpPreapprovalId: text("mp_preapproval_id"),                     // subscription ID from MP
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

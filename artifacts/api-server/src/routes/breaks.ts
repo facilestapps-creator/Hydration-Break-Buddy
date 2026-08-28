@@ -30,17 +30,21 @@ router.post("/breaks", requireAuth, relaxedLimiter, async (req, res): Promise<vo
     return;
   }
 
-  // Block break logging if team subscription is not active
+    // Block break logging if team subscription is not active (with a 24h grace
+  // period after a payment first fails, before actually cutting access off).
   const user = userRows[0];
   if (user.teamId) {
     const teamRows = await db
-      .select({ subscriptionStatus: teamsTable.subscriptionStatus })
+      .select({ subscriptionStatus: teamsTable.subscriptionStatus, pastDueSince: teamsTable.pastDueSince })
       .from(teamsTable)
       .where(eq(teamsTable.id, user.teamId));
 
     if (teamRows.length > 0) {
-      const { subscriptionStatus } = teamRows[0];
-      if (subscriptionStatus === "paused" || subscriptionStatus === "cancelled") {
+      const { subscriptionStatus, pastDueSince } = teamRows[0];
+      const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
+      const graceExpired = !pastDueSince || Date.now() - pastDueSince.getTime() > GRACE_PERIOD_MS;
+
+      if (subscriptionStatus === "cancelled" || (subscriptionStatus === "paused" && graceExpired)) {
         res.status(403).json({
           error: "Team subscription is not active. Breaks cannot be logged until the subscription is renewed.",
         });
