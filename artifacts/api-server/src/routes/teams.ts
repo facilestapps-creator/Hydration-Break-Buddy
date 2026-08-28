@@ -102,6 +102,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
             subscriptionStatus: "active",
             currentPeriodEnd,
             mpPreapprovalId: null,
+            creatorUserId: userId,
           })
           .returning();
 
@@ -175,8 +176,10 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
             subscriptionStatus: "active",
             currentPeriodEnd,
             mpPreapprovalId,
+            creatorUserId: userId,
           })
           .returning();
+    
 
         // Add the creator to the team within the same transaction
         await tx.update(usersTable).set({ teamId: createdTeam.id }).where(eq(usersTable.id, userId));
@@ -231,13 +234,18 @@ router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  // Check member limit for team plan
+    // Check member limit for team plan
   if (team.plan === "team" && team.memberLimit !== null) {
     const currentCount = await getTeamMemberCount(team.id);
     if (currentCount >= team.memberLimit) {
-      res.status(403).json({
-        error: `Este equipo llegó al límite de ${team.memberLimit} miembros. Actualizá a plan empresa para sumar más.`,
-      });
+      let fullMessage = `Este equipo llegó al límite de ${team.memberLimit} miembros. Actualizá a plan empresa para sumar más.`;
+      if (team.creatorUserId) {
+        const creatorRows = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, team.creatorUserId));
+        if (creatorRows.length > 0) {
+          fullMessage = `Este equipo está lleno. Avisale a ${creatorRows[0].name} que no hay más lugares disponibles.`;
+        }
+      }
+      res.status(403).json({ error: fullMessage });
       return;
     }
   }
