@@ -259,7 +259,7 @@ router.post("/teams/join", requireAuth, async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/teams/:teamId", async (req, res): Promise<void> => {
+router.get("/teams/:teamId", requireAuth, async (req, res): Promise<void> => {
   const params = GetTeamParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -272,6 +272,13 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
   const teamRows = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId));
   if (teamRows.length === 0) {
     res.status(404).json({ error: "Team not found" });
+    return;
+  }
+
+  // Verificar que quien pregunta sea miembro de este equipo antes de exponer sus datos (incluye inviteCode)
+  const userRows = await db.select().from(usersTable).where(eq(usersTable.id, req.userId));
+  if (userRows.length === 0 || userRows[0].teamId !== teamId) {
+    res.status(403).json({ error: "Not a member of this team" });
     return;
   }
 
