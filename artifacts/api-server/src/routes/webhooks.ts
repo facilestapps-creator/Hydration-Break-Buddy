@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, paymentsTable, teamsTable } from "@workspace/db";
+import { db, paymentsTable, teamsTable, webhookEventsTable } from "@workspace/db";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createHmac } from "crypto";
 import { getMpToken } from "../lib/mp-client";
