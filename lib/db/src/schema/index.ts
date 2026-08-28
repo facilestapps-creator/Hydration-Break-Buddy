@@ -76,7 +76,16 @@ export const analyticsSessionsTable = pgTable("analytics_sessions", {
   pingCount: integer("ping_count").notNull().default(1),
 });
 
-export type AnalyticsSession = typeof analyticsSessionsTable.$inferSelect;
+export type Session = typeof sessionsTable.$inferSelect;
+
+// Processed webhook events (idempotency guard — MP can retry/duplicate notifications)
+export const webhookEventsTable = pgTable("webhook_events", {
+  id: serial("id").primaryKey(),
+  dedupeKey: text("dedupe_key").notNull().unique(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type WebhookEvent = typeof webhookEventsTable.$inferSelect;
 
 // Sessions table (server-side session tokens for auth)
 export const sessionsTable = pgTable("sessions", {
