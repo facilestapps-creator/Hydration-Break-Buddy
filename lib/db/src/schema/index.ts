@@ -76,7 +76,7 @@ export const analyticsSessionsTable = pgTable("analytics_sessions", {
   pingCount: integer("ping_count").notNull().default(1),
 });
 
-export type Session = typeof sessionsTable.$inferSelect;
+export type AnalyticsSession = typeof analyticsSessionsTable.$inferSelect;
 
 // Processed webhook events (idempotency guard — MP can retry/duplicate notifications)
 export const webhookEventsTable = pgTable("webhook_events", {
