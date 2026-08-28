@@ -59,10 +59,24 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
     }
 
     // ── Route by event type ──────────────────────────────────────────────
-
+// ── Idempotency guard ────────────────────────────────────────────────
+    // MP retries webhook deliveries; process each distinct event only once.
     const eventType = body.type ?? body.topic;
+    const dedupeKey = `${eventType ?? "unknown"}:${eventId}`;
+    try {
+      await db.insert(webhookEventsTable).values({ dedupeKey });
+    } catch (err) {
+      const pgErr = err as { code?: string };
+      if (pgErr.code === "23505") {
+        // Unique violation — we've already processed this exact event.
+        console.log("[webhook] duplicate event ignored:", dedupeKey);
+        return;
+      }
+      throw err;
+    }
 
-    // ── Subscription preapproval status change ──
+    // ── Route by event type ──────────────────────────────────────────────
+
     if (eventType === "subscription_preapproval") {
       const preapprovalId = eventId;
 
