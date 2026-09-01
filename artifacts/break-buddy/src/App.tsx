@@ -77,7 +77,7 @@ function AppShell() {
   if (configPending) {
     return (
       <AnimatePresence mode="wait">
-        <SetupConfig key="setup-config" onStart={() => setConfigPending(false)} />
+                <SetupConfig key="setup-config" onStart={() => setConfigPending(false)} onBack={handleBack} />
       </AnimatePresence>
     );
   }

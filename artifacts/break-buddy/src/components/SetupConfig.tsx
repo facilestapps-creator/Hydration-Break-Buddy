@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Play } from "lucide-react";
+import { Play, ArrowLeft } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Switch } from "./Switch";
 import { Button } from "./Button";
 import { BREAK_TYPES, BreakType } from "@/lib/breaks";
 import { cn } from "@/lib/utils";
 
-export function SetupConfig({ onStart }: { onStart: () => void }) {
+export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?: () => void }) {
   const { t } = useTranslation();
 
   const [workInterval, setWorkInterval] = useLocalStorage("bb-interval", 25);
@@ -44,7 +44,17 @@ export function SetupConfig({ onStart }: { onStart: () => void }) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
+        c        className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
+      >
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-6 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t("onboarding.back")}
+          </button>
+        )}
       >
         <div className="text-center mb-8">
           <h2 className="text-2xl font-black text-foreground mb-2">{t("setup.title")}</h2>
