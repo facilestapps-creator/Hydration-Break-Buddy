@@ -44,26 +44,26 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-md bg-white p-6 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
+        className="w-full max-w-md bg-white p-5 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
       >
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-4 cursor-pointer"
+            className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-2 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             {t("onboarding.back")}
           </button>
         )}
 
-        <div className="text-center mb-5">
-          <h2 className="text-2xl font-black text-foreground mb-1.5">{t("setup.title")}</h2>
+        <div className="text-center mb-3">
+          <h2 className="text-2xl font-black text-foreground mb-1">{t("setup.title")}</h2>
           <p className="text-muted-foreground font-medium">{t("setup.subtitle")}</p>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-3">
           {/* Work Interval */}
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
               {t("settings.interval")}
             </label>
@@ -73,7 +73,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
                   key={min}
                   onClick={() => setWorkInterval(min)}
                   className={cn(
-                    "py-3 rounded-2xl font-bold transition-all border-2 cursor-pointer",
+                    "py-2 rounded-2xl font-bold transition-all border-2 cursor-pointer",
                     workInterval === min
                       ? "border-primary bg-primary text-primary-foreground shadow-[0_3px_0_hsl(24,95%,45%)]"
                       : "border-border bg-transparent text-muted-foreground hover:bg-black/5 hover:border-muted-foreground/30"
@@ -86,15 +86,15 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
           </div>
 
           {/* Enabled Breaks */}
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
               {t("settings.enabledBreaks")}
             </label>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {Object.values(BREAK_TYPES).map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between p-3 rounded-2xl border-2 border-border bg-white"
+                  className="flex items-center justify-between p-2.5 rounded-2xl border-2 border-border bg-white"
                 >
                   <div className="flex items-center gap-3 font-bold text-foreground">
                     <span className="text-2xl" role="img" aria-hidden>
@@ -113,11 +113,11 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
 
           {/* Notifications */}
           {notificationsSupported && (
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 {t("settings.notifications")}
               </label>
-              <div className="flex items-center justify-between p-3 rounded-2xl border-2 border-border bg-white">
+              <div className="flex items-center justify-between p-2.5 rounded-2xl border-2 border-border bg-white">
                 <div className="font-bold flex items-center gap-3 text-foreground">
                   <span className="text-2xl" role="img" aria-hidden>
                     🔔
@@ -133,7 +133,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
         <Button
           variant="primary"
           size="lg"
-          className="w-full mt-5 gap-2"
+          className="w-full mt-4 gap-2"
           onClick={handleStart}
         >
           <Play className="w-5 h-5 fill-current" />
