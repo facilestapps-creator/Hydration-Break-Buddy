@@ -7,8 +7,8 @@ interface TimerRingProps {
 }
 
 export function TimerRing({ progress, timeLeft, label }: TimerRingProps) {
-  const size = 280;
-  const strokeWidth = 24;
+  const size = 220;
+  const strokeWidth = 20;
   const center = size / 2;
   const radius = center - strokeWidth / 2;
   const circumference = 2 * Math.PI * radius;
@@ -44,10 +44,10 @@ export function TimerRing({ progress, timeLeft, label }: TimerRingProps) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <div className="text-6xl font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm">
+                <div className="text-5xl font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm">
           {timeLeft}
         </div>
-        <div className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-2">
+        <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
           {label}
         </div>
       </div>

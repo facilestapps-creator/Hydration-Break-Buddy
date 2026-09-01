@@ -306,19 +306,19 @@ export default function Home({
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center gap-10 z-10 w-full max-w-md mt-16">
+            <div className="flex flex-col items-center gap-6 z-10 w-full max-w-md mt-6">
         <div className="animate-float">
           <Mascot state={isBreakModalOpen ? "celebrate" : !isRunning ? "break" : "idle"} />
         </div>
 
-        <div className="flex flex-col items-center gap-8 w-full">
+        <div className="flex flex-col items-center gap-5 w-full">
           <TimerRing
             progress={timeLeft / (workInterval * 60)}
             timeLeft={formatTime(timeLeft)}
             label={t("timer.untilBreak")}
           />
 
-          <div className="bg-white/70 backdrop-blur-sm px-6 py-4 rounded-[2rem] border-2 border-border text-center flex flex-col items-center gap-1 shadow-sm w-full max-w-[280px]">
+          <div className="bg-white/70 backdrop-blur-sm px-5 py-3 rounded-[2rem] border-2 border-border text-center flex flex-col items-center gap-1 shadow-sm w-full max-w-[280px]">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("timer.upNext")}</span>
             <div className="font-bold text-lg flex items-center gap-2 text-foreground">
               <span className="text-2xl" role="img" aria-hidden>{breakInfo.icon}</span>

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 export function Mascot({ state = "idle" }: { state?: "idle" | "break" | "celebrate" }) {
   // A cute blob/face mascot
   return (
-    <div className="relative w-32 h-32 mx-auto">
+    <div className="relative w-24 h-24 mx-auto">
       <motion.div
         className="absolute inset-0 bg-primary rounded-[40%] flex items-center justify-center"
         animate={{

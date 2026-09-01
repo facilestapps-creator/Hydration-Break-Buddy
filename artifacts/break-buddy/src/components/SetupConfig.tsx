@@ -44,24 +44,24 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
+                className="w-full max-w-md bg-white p-6 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
       >
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-6 cursor-pointer"
+            className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-4 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             {t("onboarding.back")}
           </button>
         )}
 
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-black text-foreground mb-2">{t("setup.title")}</h2>
+        <div className="text-center mb-5">
+          <h2 className="text-2xl font-black text-foreground mb-1.5">{t("setup.title")}</h2>
           <p className="text-muted-foreground font-medium">{t("setup.subtitle")}</p>
         </div>
 
-        <div className="space-y-7">
+        <div className="space-y-5">
           {/* Work Interval */}
           <div className="space-y-3">
             <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
@@ -94,7 +94,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
               {Object.values(BREAK_TYPES).map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between p-4 rounded-2xl border-2 border-border bg-white"
+                  className="flex items-center justify-between p-3 rounded-2xl border-2 border-border bg-white"
                 >
                   <div className="flex items-center gap-3 font-bold text-foreground">
                     <span className="text-2xl" role="img" aria-hidden>
@@ -117,7 +117,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 {t("settings.notifications")}
               </label>
-              <div className="flex items-center justify-between p-4 rounded-2xl border-2 border-border bg-white">
+              <div className="flex items-center justify-between p-3 rounded-2xl border-2 border-border bg-white">
                 <div className="font-bold flex items-center gap-3 text-foreground">
                   <span className="text-2xl" role="img" aria-hidden>
                     🔔
@@ -133,7 +133,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
         <Button
           variant="primary"
           size="lg"
-          className="w-full mt-8 gap-2"
+          className="w-full mt-5 gap-2"
           onClick={handleStart}
         >
           <Play className="w-5 h-5 fill-current" />
