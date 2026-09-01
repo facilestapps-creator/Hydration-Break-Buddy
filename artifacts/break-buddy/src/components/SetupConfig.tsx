@@ -57,14 +57,14 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
         )}
 
         <div className="text-center mb-3">
-          <h2 className="text-2xl font-black text-foreground mb-1">{t("setup.title")}</h2>
-          <p className="text-muted-foreground font-medium">{t("setup.subtitle")}</p>
+          <h2 className="text-xl font-black text-foreground mb-1">{t("setup.title")}</h2>
+          <p className="text-sm text-muted-foreground font-medium">{t("setup.subtitle")}</p>
         </div>
 
         <div className="space-y-3">
           {/* Work Interval */}
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               {t("settings.interval")}
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -73,7 +73,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
                   key={min}
                   onClick={() => setWorkInterval(min)}
                   className={cn(
-                    "py-2 rounded-2xl font-bold transition-all border-2 cursor-pointer",
+                    "py-1.5 text-sm rounded-2xl font-bold transition-all border-2 cursor-pointer",
                     workInterval === min
                       ? "border-primary bg-primary text-primary-foreground shadow-[0_3px_0_hsl(24,95%,45%)]"
                       : "border-border bg-transparent text-muted-foreground hover:bg-black/5 hover:border-muted-foreground/30"
@@ -87,7 +87,7 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
 
           {/* Enabled Breaks */}
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               {t("settings.enabledBreaks")}
             </label>
             <div className="space-y-1.5">
@@ -96,8 +96,8 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
                   key={b.id}
                   className="flex items-center justify-between p-2.5 rounded-2xl border-2 border-border bg-white"
                 >
-                  <div className="flex items-center gap-3 font-bold text-foreground">
-                    <span className="text-2xl" role="img" aria-hidden>
+                  <div className="flex items-center gap-3 text-sm font-bold text-foreground">
+                    <span className="text-xl" role="img" aria-hidden>
                       {b.icon}
                     </span>
                     {t("breaks." + b.id + ".title")}
@@ -114,12 +114,12 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
           {/* Notifications */}
           {notificationsSupported && (
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 {t("settings.notifications")}
               </label>
               <div className="flex items-center justify-between p-2.5 rounded-2xl border-2 border-border bg-white">
-                <div className="font-bold flex items-center gap-3 text-foreground">
-                  <span className="text-2xl" role="img" aria-hidden>
+                <div className="text-sm font-bold flex items-center gap-3 text-foreground">
+                  <span className="text-xl" role="img" aria-hidden>
                     🔔
                   </span>
                   {t("settings.notifications")}
@@ -132,11 +132,11 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
 
         <Button
           variant="primary"
-          size="lg"
+          size="md"
           className="w-full mt-4 gap-2"
           onClick={handleStart}
         >
-          <Play className="w-5 h-5 fill-current" />
+          <Play className="w-4 h-4 fill-current" />
           {t("setup.start")}
         </Button>
       </motion.div>
