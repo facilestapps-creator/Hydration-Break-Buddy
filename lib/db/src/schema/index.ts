@@ -46,17 +46,19 @@ export const insertBreakEntrySchema = createInsertSchema(breakEntriesTable).omit
 export type InsertBreakEntry = z.infer<typeof insertBreakEntrySchema>;
 export type BreakEntry = typeof breakEntriesTable.$inferSelect;
 
-// Payments table (Mercado Pago)
+// Payments table
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   paymentToken: text("payment_token").notNull().unique(),   // our UUID, used as external_reference
   mpPreferenceId: text("mp_preference_id"),                 // nullable — used only for one-time preference flow
   mpPaymentId: text("mp_payment_id"),                       // filled in by webhook (one-time payment)
   mpPreapprovalId: text("mp_preapproval_id"),               // subscription preapproval ID from MP
+  provider: text("provider").notNull().default("mercadopago"),   // "mercadopago" | "lemonsqueezy"
   userId: integer("user_id").notNull().references(() => usersTable.id),
   status: text("status").notNull().default("pending"),      // pending | approved | rejected | cancelled
   plan: text("plan").notNull().default("team"),             // "team" | "company"
-  amountArs: integer("amount_ars").notNull().default(0),    // 0 for subscription plans (price from MP)
+  amount: integer("amount").notNull().default(0),           // price in smallest currency unit; 0 for subscription plans
+  currency: text("currency").notNull().default("ARS"),      // "ARS" | "USD" | etc.
   consumed: boolean("consumed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
