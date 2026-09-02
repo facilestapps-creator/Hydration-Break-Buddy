@@ -88,7 +88,8 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
     userId,
     status: "pending",
     plan,
-    amountArs,
+    amount: amountArs,
+    currency: "ARS",
     mpPreapprovalId: null,
   });
 
