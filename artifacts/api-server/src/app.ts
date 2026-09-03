@@ -92,7 +92,16 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      // Preserve the raw request body so webhook signature verification
+      // (Lemon Squeezy uses HMAC over the raw body) still works even
+      // though we parse JSON globally for every route.
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
