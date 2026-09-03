@@ -1,8 +1,8 @@
-import { Router, type IRouter } from "express";
+import express, { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, paymentsTable, teamsTable, webhookEventsTable } from "@workspace/db";
 import { MercadoPagoConfig, Payment } from "mercadopago";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getMpToken } from "../lib/mp-client";
 
 const router: IRouter = Router();
@@ -202,6 +202,150 @@ router.post("/webhooks/mercadopago", async (req, res): Promise<void> => {
 
   } catch (err) {
     console.error("[webhook] processing error:", err);
+  }
+});
+
+router.post("/webhooks/lemonsqueezy", async (req, res): Promise<void> => {
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+
+  // Fail closed in production: if no secret is configured, we cannot verify payload
+  if (process.env.NODE_ENV === "production" && !secret) {
+    res.status(200).json({ received: false, reason: "webhook secret not configured" });
+    return;
+  }
+
+  // Always respond 200 immediately — Lemon Squeezy retries on failure.
+  res.status(200).json({ received: true });
+
+  try {
+    const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody;
+    const signatureHeader = req.headers["x-signature"] as string | undefined;
+
+    // ── Signature verification (HMAC over the raw body) ────────────────
+    if (secret) {
+      if (!rawBody || !signatureHeader) {
+        console.warn("[webhook/ls] missing rawBody or signature header — dropping");
+        return;
+      }
+      const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+      const expectedBuf = Buffer.from(expected, "utf8");
+      const actualBuf = Buffer.from(signatureHeader, "utf8");
+      if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
+        console.warn("[webhook/ls] signature mismatch — dropping");
+        return;
+      }
+    }
+
+    const body = req.body as {
+      meta?: { event_name?: string; custom_data?: Record<string, unknown> };
+      data?: { id?: string; type?: string; attributes?: Record<string, unknown> };
+    };
+
+    const eventName = body.meta?.event_name;
+    const dataId = body.data?.id;
+    const dataType = body.data?.type;
+    const attrs = body.data?.attributes ?? {};
+
+    if (!eventName || !dataId) return;
+
+    // ── Idempotency guard ────────────────────────────────────────────────
+    const updatedAt = typeof attrs.updated_at === "string" ? attrs.updated_at : "";
+    const dedupeKey = `ls:${eventName}:${dataId}:${updatedAt}`;
+    try {
+      await db.insert(webhookEventsTable).values({ dedupeKey });
+    } catch (err) {
+      const pgErr = err as { code?: string };
+      if (pgErr.code === "23505") {
+        console.log("[webhook/ls] duplicate event ignored:", dedupeKey);
+        return;
+      }
+      throw err;
+    }
+
+    // ── Subscription lifecycle events (created/updated/cancelled/etc) ─────
+    if (dataType === "subscriptions") {
+      const subscriptionId = dataId;
+      const status = typeof attrs.status === "string" ? attrs.status : undefined;
+      const renewsAt = typeof attrs.renews_at === "string" ? attrs.renews_at : undefined;
+      const customData = body.meta?.custom_data as { teamId?: string | number } | undefined;
+
+      const newSubStatus =
+        status === "active" || status === "on_trial" ? "active"
+        : status === "paused" ? "paused"
+        : status === "past_due" || status === "unpaid" ? "past_due"
+        : status === "cancelled" || status === "expired" ? "cancelled"
+        : null;
+
+      // Find the team: prefer matching by lsSubscriptionId (already linked),
+      // fall back to custom_data.teamId — set at checkout creation, wired up
+      // in a later block (routing/checkout, not built yet).
+      let teamId: number | null = null;
+      const [existing] = await db
+        .select({ id: teamsTable.id })
+        .from(teamsTable)
+        .where(eq(teamsTable.lsSubscriptionId, subscriptionId));
+      if (existing) {
+        teamId = existing.id;
+      } else if (customData?.teamId) {
+        teamId = Number(customData.teamId);
+      }
+
+      if (teamId && newSubStatus) {
+        const updateData: Record<string, unknown> = {
+          subscriptionStatus: newSubStatus,
+          lsSubscriptionId: subscriptionId,
+        };
+        if (newSubStatus === "active") {
+          updateData.currentPeriodEnd = renewsAt ? new Date(renewsAt) : null;
+          updateData.pastDueSince = null;
+        } else if (newSubStatus === "past_due" || newSubStatus === "paused") {
+          const [team] = await db
+            .select({ pastDueSince: teamsTable.pastDueSince })
+            .from(teamsTable)
+            .where(eq(teamsTable.id, teamId));
+          if (team && !team.pastDueSince) {
+            updateData.pastDueSince = new Date();
+          }
+        }
+        await db.update(teamsTable).set(updateData).where(eq(teamsTable.id, teamId));
+      }
+
+      return;
+    }
+
+    // ── Subscription payment events (invoices — note: data.id is the invoice
+    // ID, NOT the subscription ID; the subscription ID is in attributes) ──
+    if (dataType === "subscription-invoices") {
+      const attrSubId = attrs.subscription_id;
+      const subscriptionId =
+        typeof attrSubId === "number" || typeof attrSubId === "string"
+          ? String(attrSubId)
+          : undefined;
+      if (!subscriptionId) return;
+
+      const [team] = await db
+        .select({ id: teamsTable.id, pastDueSince: teamsTable.pastDueSince })
+        .from(teamsTable)
+        .where(eq(teamsTable.lsSubscriptionId, subscriptionId));
+      if (!team) return;
+
+      if (eventName === "subscription_payment_success") {
+        await db
+          .update(teamsTable)
+          .set({ subscriptionStatus: "active", pastDueSince: null })
+          .where(eq(teamsTable.id, team.id));
+      } else if (eventName === "subscription_payment_failed") {
+        if (!team.pastDueSince) {
+          await db
+            .update(teamsTable)
+            .set({ subscriptionStatus: "past_due", pastDueSince: new Date() })
+            .where(eq(teamsTable.id, team.id));
+        }
+      }
+      return;
+    }
+  } catch (err) {
+    console.error("[webhook/ls] processing error:", err);
   }
 });
 
