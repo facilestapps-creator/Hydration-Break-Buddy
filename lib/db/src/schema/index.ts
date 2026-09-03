@@ -14,6 +14,7 @@ export const teamsTable = pgTable("teams", {
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }), // nullable
   pastDueSince: timestamp("past_due_since", { withTimezone: true }),        // nullable — set when a payment first fails, cleared on success. Used for the 24h grace window.
   mpPreapprovalId: text("mp_preapproval_id"),                     // subscription ID from MP
+  lsSubscriptionId: text("ls_subscription_id"),                   // subscription ID from Lemon Squeezy
   creatorUserId: integer("creator_user_id"),                      // nullable — who created the team, for display purposes only (no special permissions attached)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
