@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Play, ArrowLeft } from "lucide-react";
+import { Play, ArrowLeft, Loader2, Check } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useUpdateUserEmail } from "@workspace/api-client-react";
 import { Switch } from "./Switch";
 import { Button } from "./Button";
 import { BREAK_TYPES, BreakType } from "@/lib/breaks";
@@ -14,6 +16,18 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
   const [enabledBreaks, setEnabledBreaks] = useLocalStorage<BreakType[]>("bb-breaks", ["hydration", "walk", "eye"]);
   const [notifications, setNotifications] = useLocalStorage("bb-notifications", false);
 
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoverySaved, setRecoverySaved] = useState(false);
+  const [recoveryError, setRecoveryError] = useState(false);
+  const updateEmail = useUpdateUserEmail();
+
+  const [storedUserId] = useLocalStorage<number | null>("bb-userId-num", null);
+  // Read legacy userId if stored as a string
+  const currentUserId = storedUserId ?? (() => {
+    const raw = window.localStorage.getItem("bb-userId");
+    return raw ? Number(raw) : null;
+  })();
+
   const notificationsSupported = typeof window !== "undefined" && "Notification" in window;
 
   const toggleBreakType = (type: BreakType) => {
@@ -24,6 +38,20 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
       }
       return [...prev, type];
     });
+  };
+
+  const handleSaveRecoveryEmail = () => {
+    const email = recoveryEmail.trim();
+    if (!currentUserId || !email) return;
+    setRecoverySaved(false);
+    setRecoveryError(false);
+    updateEmail.mutate(
+      { userId: currentUserId, data: { email } },
+      {
+        onSuccess: () => setRecoverySaved(true),
+        onError: () => setRecoveryError(true),
+      }
+    );
   };
 
   const handleStart = () => {
@@ -128,6 +156,40 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
               </div>
             </div>
           )}
+
+          {/* Recovery Email */}
+          {currentUserId && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                {t("recovery.emailLabel")}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={(e) => {
+                    setRecoveryEmail(e.target.value);
+                    setRecoverySaved(false);
+                    setRecoveryError(false);
+                  }}
+                  placeholder={t("recovery.emailPlaceholder")}
+                  className="flex-1 min-w-0 px-4 py-2.5 rounded-2xl border-2 border-border bg-background text-foreground font-bold focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={handleSaveRecoveryEmail}
+                  disabled={!recoveryEmail.trim() || updateEmail.isPending}
+                  className="gap-1.5 px-4 shrink-0"
+                >
+                  {updateEmail.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {t("recovery.save")}
+                </Button>
+              </div>
+              {recoverySaved && <p className="text-sm font-bold text-secondary">{t("recovery.saved")}</p>}
+              {recoveryError && <p className="text-sm font-bold text-destructive">{t("recovery.emailSavedError")}</p>}
+            </div>
+          )}
         </div>
 
         <Button
@@ -145,5 +207,4 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
       <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-secondary/10 rounded-full blur-[100px] pointer-events-none" />
     </motion.div>
   );
-}git log -1 --stat -- lib/db/src/schema/index.ts
-cat lib/db/src/schema/index.ts
+}
