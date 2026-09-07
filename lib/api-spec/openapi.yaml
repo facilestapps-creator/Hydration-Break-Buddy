@@ -20,6 +20,8 @@ tags:
     description: Mercado Pago payment flow
   - name: config
     description: App configuration
+  - name: auth
+    description: Session recovery via magic link
 paths:
   /healthz:
     get:
@@ -296,6 +298,79 @@ paths:
         "400":
           description: Bad request
 
+  /users/{userId}/email:
+    patch:
+      operationId: updateUserEmail
+      tags: [users]
+      summary: Set or update the recovery email for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmailInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Bad request
+        "404":
+          description: Not found
+
+  /auth/magic-link/request:
+    post:
+      operationId: requestMagicLink
+      tags: [auth]
+      summary: Request a magic login link by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkRequestInput"
+      responses:
+        "200":
+          description: >
+            Always returns ok, whether or not the email is registered
+            (avoids leaking which emails exist in the system)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Bad request
+
+  /auth/magic-link/verify:
+    post:
+      operationId: verifyMagicLink
+      tags: [auth]
+      summary: Verify a magic link token and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkVerifyInput"
+      responses:
+        "200":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid or expired token
+
 components:
   schemas:
     HealthStatus:
@@ -329,6 +404,36 @@ components:
           type: string
           minLength: 1
           maxLength: 50
+    
+    UpdateEmailInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    MagicLinkRequestInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    MagicLinkVerifyInput:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
 
     UserStats:
       type: object
