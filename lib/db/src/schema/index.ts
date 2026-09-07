@@ -27,6 +27,7 @@ export type Team = typeof teamsTable.$inferSelect;
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  email: text("email"),                                     // nullable — optional, used only for account recovery via magic link
   teamId: integer("team_id").references(() => teamsTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -100,3 +101,16 @@ export const sessionsTable = pgTable("sessions", {
 });
 
 export type Session = typeof sessionsTable.$inferSelect;
+
+// Magic links (one-time login tokens sent by email — recovery mechanism
+// for users who lose their session cookie, e.g. new device or cleared data)
+export const magicLinksTable = pgTable("magic_links", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumed: boolean("consumed").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type MagicLink = typeof magicLinksTable.$inferSelect;
