@@ -27,6 +27,22 @@ export interface UserInput {
   name: string;
 }
 
+export interface UpdateEmailInput {
+  email: string;
+}
+
+export interface MagicLinkRequestInput {
+  email: string;
+}
+
+export interface MagicLinkVerifyInput {
+  token: string;
+}
+
+export interface OkResponse {
+  ok: boolean;
+}
+
 export interface UserStats {
   userId: number;
   todayBreaks: number;

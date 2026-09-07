@@ -26,12 +26,16 @@ import type {
   GetPaymentStatusParams,
   HealthStatus,
   Leaderboard,
+  MagicLinkRequestInput,
+  MagicLinkVerifyInput,
+  OkResponse,
   PaymentCreateInput,
   PaymentCreateResponse,
   PaymentStatusResponse,
   Team,
   TeamInput,
   TeamJoinInput,
+  UpdateEmailInput,
   UpdateTeamLogoInput,
   UpdateTeamLogoResponse,
   User,
@@ -1042,5 +1046,219 @@ export const useLogBreak = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getLogBreakMutationOptions(options));
+    }
+
+export const getUpdateUserEmailUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/email`
+}
+
+/**
+ * @summary Set or update the recovery email for a user
+ */
+export const updateUserEmail = async (userId: number,
+    updateEmailInput: UpdateEmailInput, options?: RequestInit): Promise<User> => {
+
+  return customFetch<User>(getUpdateUserEmailUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateEmailInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateUserEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: number;data: BodyType<UpdateEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: number;data: BodyType<UpdateEmailInput>}, TContext> => {
+
+const mutationKey = ['updateUserEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserEmail>>, {userId: number;data: BodyType<UpdateEmailInput>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateUserEmail(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserEmailMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserEmail>>>
+    export type UpdateUserEmailMutationBody = BodyType<UpdateEmailInput>
+    export type UpdateUserEmailMutationError = ErrorType<void>
+
+    /**
+ * @summary Set or update the recovery email for a user
+ */
+export const useUpdateUserEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: number;data: BodyType<UpdateEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserEmail>>,
+        TError,
+        {userId: number;data: BodyType<UpdateEmailInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserEmailMutationOptions(options));
+    }
+
+export const getRequestMagicLinkUrl = () => {
+
+
+
+
+  return `/api/auth/magic-link/request`
+}
+
+/**
+ * @summary Request a magic login link by email
+ */
+export const requestMagicLink = async (magicLinkRequestInput: MagicLinkRequestInput, options?: RequestInit): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getRequestMagicLinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(magicLinkRequestInput)
+  }
+);}
+
+
+
+
+
+export const getRequestMagicLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestMagicLink>>, TError,{data: BodyType<MagicLinkRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestMagicLink>>, TError,{data: BodyType<MagicLinkRequestInput>}, TContext> => {
+
+const mutationKey = ['requestMagicLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestMagicLink>>, {data: BodyType<MagicLinkRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestMagicLink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestMagicLinkMutationResult = NonNullable<Awaited<ReturnType<typeof requestMagicLink>>>
+    export type RequestMagicLinkMutationBody = BodyType<MagicLinkRequestInput>
+    export type RequestMagicLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Request a magic login link by email
+ */
+export const useRequestMagicLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestMagicLink>>, TError,{data: BodyType<MagicLinkRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestMagicLink>>,
+        TError,
+        {data: BodyType<MagicLinkRequestInput>},
+        TContext
+      > => {
+      return useMutation(getRequestMagicLinkMutationOptions(options));
+    }
+
+export const getVerifyMagicLinkUrl = () => {
+
+
+
+
+  return `/api/auth/magic-link/verify`
+}
+
+/**
+ * @summary Verify a magic link token and start a session
+ */
+export const verifyMagicLink = async (magicLinkVerifyInput: MagicLinkVerifyInput, options?: RequestInit): Promise<User> => {
+
+  return customFetch<User>(getVerifyMagicLinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(magicLinkVerifyInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyMagicLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyMagicLink>>, TError,{data: BodyType<MagicLinkVerifyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyMagicLink>>, TError,{data: BodyType<MagicLinkVerifyInput>}, TContext> => {
+
+const mutationKey = ['verifyMagicLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyMagicLink>>, {data: BodyType<MagicLinkVerifyInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyMagicLink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyMagicLinkMutationResult = NonNullable<Awaited<ReturnType<typeof verifyMagicLink>>>
+    export type VerifyMagicLinkMutationBody = BodyType<MagicLinkVerifyInput>
+    export type VerifyMagicLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Verify a magic link token and start a session
+ */
+export const useVerifyMagicLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyMagicLink>>, TError,{data: BodyType<MagicLinkVerifyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyMagicLink>>,
+        TError,
+        {data: BodyType<MagicLinkVerifyInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyMagicLinkMutationOptions(options));
     }
 

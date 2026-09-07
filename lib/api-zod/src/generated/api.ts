@@ -235,3 +235,51 @@ export const LogBreakResponse = zod.object({
 })
 
 
+/**
+ * @summary Set or update the recovery email for a user
+ */
+export const UpdateUserEmailParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const UpdateUserEmailBody = zod.object({
+  "email": zod.string()
+})
+
+export const UpdateUserEmailResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "teamId": zod.number().nullish(),
+  "teamName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Request a magic login link by email
+ */
+export const RequestMagicLinkBody = zod.object({
+  "email": zod.string()
+})
+
+export const RequestMagicLinkResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Verify a magic link token and start a session
+ */
+export const VerifyMagicLinkBody = zod.object({
+  "token": zod.string()
+})
+
+export const VerifyMagicLinkResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "teamId": zod.number().nullish(),
+  "teamName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+

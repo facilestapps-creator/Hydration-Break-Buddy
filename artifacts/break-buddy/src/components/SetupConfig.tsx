@@ -145,4 +145,5 @@ export function SetupConfig({ onStart, onBack }: { onStart: () => void; onBack?:
       <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-secondary/10 rounded-full blur-[100px] pointer-events-none" />
     </motion.div>
   );
-}
+}git log -1 --stat -- lib/db/src/schema/index.ts
+cat lib/db/src/schema/index.ts
