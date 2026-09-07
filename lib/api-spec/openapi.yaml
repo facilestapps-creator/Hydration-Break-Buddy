@@ -411,7 +411,6 @@ components:
       properties:
         email:
           type: string
-          format: email
 
     MagicLinkRequestInput:
       type: object
@@ -419,7 +418,6 @@ components:
       properties:
         email:
           type: string
-          format: email
 
     MagicLinkVerifyInput:
       type: object
