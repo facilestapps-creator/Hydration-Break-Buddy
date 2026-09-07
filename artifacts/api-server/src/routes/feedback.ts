@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import nodemailer from "nodemailer";
+import { sendEmail } from "../lib/mailer";
 import { feedbackLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
@@ -13,14 +13,6 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "info.breakbuddy@gmail.com",
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
-
 router.post("/feedback", feedbackLimiter, async (req, res) => {
   const { message } = req.body as { message?: string };
 
@@ -30,8 +22,7 @@ router.post("/feedback", feedbackLimiter, async (req, res) => {
   }
 
   try {
-    await transporter.sendMail({
-      from: '"Break Buddy" <info.breakbuddy@gmail.com>',
+    await sendEmail({
       to: "info.breakbuddy@gmail.com",
       subject: "Nuevo feedback de usuario",
       text: message.trim(),
