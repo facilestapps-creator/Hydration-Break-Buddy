@@ -10,8 +10,12 @@ import {
   GetUserResponse,
   GetUserStatsParams,
   GetUserStatsResponse,
+  UpdateUserEmailParams,
+  UpdateUserEmailBody,
+  UpdateUserEmailResponse,
 } from "@workspace/api-zod";
 import { strictLimiter } from "../lib/rate-limiters";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -128,6 +132,64 @@ router.get("/users/:userId/stats", async (req, res): Promise<void> => {
   };
 
   res.json(GetUserStatsResponse.parse(stats));
+});
+
+router.patch("/users/:userId/email", requireAuth, strictLimiter, async (req, res): Promise<void> => {
+  const params = UpdateUserEmailParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateUserEmailBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const raw = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const userId = parseInt(raw, 10);
+
+  // Never trust the userId in the URL — only the authenticated session's
+  // own user can set their own recovery email. Prevents account takeover
+  // via someone else's magic link.
+  if (userId !== req.userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const email = body.data.email.trim().toLowerCase();
+
+  const updated = await db
+    .update(usersTable)
+    .set({ email })
+    .where(eq(usersTable.id, userId))
+    .returning();
+
+  if (updated.length === 0) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      teamId: usersTable.teamId,
+      teamName: teamsTable.name,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .leftJoin(teamsTable, eq(usersTable.teamId, teamsTable.id))
+    .where(eq(usersTable.id, userId));
+
+  const u = rows[0];
+  res.json(UpdateUserEmailResponse.parse({
+    id: u.id,
+    name: u.name,
+    teamId: u.teamId ?? null,
+    teamName: u.teamName ?? null,
+    createdAt: u.createdAt.toISOString(),
+  }));
 });
 
 export default router;
