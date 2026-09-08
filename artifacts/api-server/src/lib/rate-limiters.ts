@@ -47,3 +47,17 @@ export const analyticsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
 });
+
+
+/**
+ * Magic link request limiter: POST /auth/magic-link/request — 5 requests
+ * per 15 minutes per IP. Sends an email each time, so kept tight to avoid
+ * abuse (email spam to arbitrary addresses, or probing which emails exist).
+ */
+export const magicLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
