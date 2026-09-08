@@ -1,1 +1,0 @@
-{"version":3,"file":"appConfig.d.ts","sourceRoot":"","sources":["../../../src/generated/types/appConfig.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,SAAS;IACxB,gBAAgB;IAChB,WAAW,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC5B,gBAAgB,EAAE,OAAO,CAAC;IAC1B,gBAAgB;IAChB,eAAe,EAAE,MAAM,GAAG,IAAI,CAAC;CAChC"}
