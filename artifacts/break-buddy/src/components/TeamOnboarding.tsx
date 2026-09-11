@@ -13,6 +13,7 @@ import {
   useGetConfig,
 } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 type Step =
   | "name"
@@ -35,6 +36,7 @@ export function TeamOnboarding({
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const [, navigate] = useLocation();
 
   const searchParams = new URLSearchParams(window.location.search);
   const bbPaymentResult = searchParams.get("bb_payment");
@@ -334,6 +336,13 @@ export function TeamOnboarding({
               >
                 {createUser.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t("onboarding.name.continue")}
               </Button>
+              <button
+                type="button"
+                onClick={() => navigate("/recover")}
+                className="text-xs text-muted-foreground font-medium text-center w-full hover:text-primary transition-colors cursor-pointer"
+              >
+                {t("recovery.alreadyHaveAccount")}
+              </button>
             </motion.form>
           )}
 
