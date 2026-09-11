@@ -53,6 +53,7 @@ const PLAN_CONFIG: Record<"team" | "company", { planId: string; amountArs: numbe
 //   6. Webhook (subscription_preapproval) also updates status when it fires
 //
 router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Promise<void> => {
+  try {
   const userId = req.userId;
 
   const { plan } = req.body as { plan?: unknown };
@@ -93,13 +94,17 @@ router.post("/payments/create", requireAuth, strictLimiter, async (req, res): Pr
     mpPreapprovalId: null,
   });
 
-  res.status(201).json({
+    res.status(201).json({
     paymentToken,
     plan,
     amountArs,
     status: "pending",
     checkoutUrl,
   });
+  } catch (err) {
+    console.error("[payments/create] error:", err);
+    res.status(500).json({ error: "Failed to create payment" });
+  }
 });
 
 // ── Poll payment status ────────────────────────────────────────────────────
