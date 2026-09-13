@@ -73,6 +73,8 @@ const resources = {
           loading: "Redirecting…",
           error: "Could not start the payment. Please try again.",
           secureNote: "Secure payment processed by Mercado Pago",
+          chooseHowToPay: "Choose how to pay — both options give access to the same plan.",
+          internationalOption: "Pay internationally (card)",
         },
         payPending: {
           title: "Payment in Progress",
@@ -228,6 +230,8 @@ const resources = {
           loading: "Redirigiendo…",
           error: "No se pudo iniciar el pago. Intentalo de nuevo.",
           secureNote: "Pago seguro procesado por Mercado Pago",
+          chooseHowToPay: "Elegí cómo pagar: ambas opciones dan acceso al mismo plan.",
+          internationalOption: "Pagar internacional (tarjeta)",
         },
         payPending: {
           title: "Pago en Proceso",
@@ -382,6 +386,8 @@ const resources = {
           button: "Pagar $5.500 ARS",
           loading: "Preparando pagamento…",
           error: "Não foi possível iniciar o pagamento. Tente novamente.",
+          chooseHowToPay: "Escolha como pagar — ambas as opções dão acesso ao mesmo plano.",
+          internationalOption: "Pagar internacionalmente (cartão)",
         },
         payPending: {
           title: "Pagamento em Andamento",
@@ -515,6 +521,8 @@ const resources = {
           button: "Payer 5 500 ARS",
           loading: "Préparation du paiement…",
           error: "Impossible de démarrer le paiement. Réessayez.",
+          chooseHowToPay: "Choisissez comment payer — les deux options donnent accès au même plan.",
+          internationalOption: "Payer à l'international (carte)",
         },
         payPending: {
           title: "Paiement en Cours",
@@ -648,6 +656,8 @@ const resources = {
           button: "5.500 ARS zahlen",
           loading: "Zahlung wird vorbereitet…",
           error: "Zahlung konnte nicht gestartet werden. Erneut versuchen.",
+          chooseHowToPay: "Wähle, wie du bezahlst – beide Optionen bieten Zugang zum selben Plan.",
+          internationalOption: "International bezahlen (Karte)",
         },
         payPending: {
           title: "Zahlung läuft",
@@ -781,6 +791,8 @@ const resources = {
           button: "Paga 5.500 ARS",
           loading: "Preparazione pagamento…",
           error: "Impossibile avviare il pagamento. Riprova.",
+          chooseHowToPay: "Scegli come pagare: entrambe le opzioni danno accesso allo stesso piano.",
+          internationalOption: "Paga internazionale (carta)",
         },
         payPending: {
           title: "Pagamento in Corso",
@@ -914,6 +926,8 @@ const resources = {
           button: "Betaal 5.500 ARS",
           loading: "Betaling voorbereiden…",
           error: "Betaling kon niet worden gestart. Probeer opnieuw.",
+          chooseHowToPay: "Kies hoe je betaalt — beide opties geven toegang tot hetzelfde plan.",
+          internationalOption: "Internationaal betalen (kaart)",
         },
         payPending: {
           title: "Betaling Bezig",
@@ -1047,6 +1061,8 @@ const resources = {
           button: "支付 5,500 ARS",
           loading: "正在准备支付…",
           error: "无法启动支付，请重试。",
+          chooseHowToPay: "选择支付方式 — 两种方式都可访问同一套餐。",
+          internationalOption: "国际支付（银行卡）",
         },
         payPending: {
           title: "支付进行中",
@@ -1180,6 +1196,8 @@ const resources = {
           button: "5,500 ARSを支払う",
           loading: "支払いを準備中…",
           error: "支払いを開始できませんでした。もう一度お試しください。",
+          chooseHowToPay: "支払い方法をお選びください — どちらの方法でも同じプランにアクセスできます。",
+          internationalOption: "国際決済（カード）",
         },
         payPending: {
           title: "支払い処理中",
@@ -1313,6 +1331,8 @@ const resources = {
           button: "5,500 ARS 결제",
           loading: "결제 준비 중…",
           error: "결제를 시작할 수 없습니다. 다시 시도해주세요.",
+          chooseHowToPay: "결제 방법을 선택하세요 — 두 옵션 모두 동일한 플랜에 접근할 수 있습니다.",
+          internationalOption: "국제 결제 (카드)",
         },
         payPending: {
           title: "결제 진행 중",
@@ -1446,6 +1466,8 @@ const resources = {
           button: "ادفع 5,500 ARS",
           loading: "جارٍ تجهيز الدفع…",
           error: "تعذر بدء الدفع. حاول مجدداً.",
+          chooseHowToPay: "اختر طريقة الدفع — كلا الخيارين يمنحان الوصول إلى نفس الباقة.",
+          internationalOption: "الدفع دولياً (بطاقة)",
         },
         payPending: {
           title: "الدفع جارٍ",
@@ -1579,6 +1601,8 @@ const resources = {
           button: "5,500 ARS भुगतान करें",
           loading: "भुगतान तैयार हो रहा है…",
           error: "भुगतान शुरू नहीं हो सका। फिर प्रयास करें।",
+          chooseHowToPay: "भुगतान कैसे करना है चुनें — दोनों विकल्प समान प्लान तक पहुँच देते हैं।",
+          internationalOption: "अंतर्राष्ट्रीय भुगतान (कार्ड)",
         },
         payPending: {
           title: "भुगतान प्रक्रिया में",
