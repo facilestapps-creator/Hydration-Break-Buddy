@@ -8,6 +8,7 @@ import {
   useCreateTeam,
   useJoinTeam,
   useCreatePayment,
+  useCreateInternationalPayment,
   useGetPaymentStatus,
   getGetPaymentStatusQueryKey,
   useGetConfig,
@@ -84,6 +85,7 @@ export function TeamOnboarding({
   const createTeam = useCreateTeam();
   const joinTeam = useJoinTeam();
   const createPayment = useCreatePayment();
+  const createPaymentInternational = useCreateInternationalPayment();
 
   const pollingEnabled = step === "pay-pending" && !!pendingToken;
   const mpParams = { mpPreapprovalId: mpReturnPreapprovalId ?? undefined };
@@ -185,6 +187,31 @@ export function TeamOnboarding({
             window.location.href = result.checkoutUrl;
           } else {
             // Fallback: no checkout URL (shouldn't happen), go to polling step
+            setStep("pay-pending");
+          }
+        },
+                onError: (err) => {
+          const detail = (err as { data?: { detail?: string } })?.data?.detail;
+          setError(detail ?? t("onboarding.payment.error"));
+        },
+      }
+    );
+  };
+
+  // Same as handleInitiatePayment, but for the Lemon Squeezy (international) checkout.
+  const handleInitiateInternationalPayment = () => {
+    setError("");
+    createPaymentInternational.mutate(
+      { data: { plan: selectedPlan } },
+      {
+        onSuccess: (result) => {
+          window.localStorage.setItem("bb-pending-payment", result.paymentToken);
+          window.localStorage.setItem("bb-pending-plan", selectedPlan);
+          window.localStorage.setItem("bb-pending-team-name", teamName.trim());
+          setPendingToken(result.paymentToken);
+          if (result.checkoutUrl) {
+            window.location.href = result.checkoutUrl;
+          } else {
             setStep("pay-pending");
           }
         },
@@ -563,9 +590,14 @@ export function TeamOnboarding({
                   variant="secondary"
                   size="lg"
                   className="w-full"
-                  onClick={() => console.log("TODO: wire international checkout")}
+                  onClick={handleInitiateInternationalPayment}
+                  disabled={createPaymentInternational.isPending}
                 >
-                  <Globe className="w-5 h-5" /> {t("onboarding.payment.internationalOption")}
+                  {createPaymentInternational.isPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <><Globe className="w-5 h-5" /> {t("onboarding.payment.internationalOption")}</>
+                  )}
                 </Button>
               </div>
 
