@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
-import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle, Building2 } from "lucide-react";
+import { ArrowLeft, Users, Plus, Copy, Check, Loader2, CreditCard, RefreshCw, XCircle, Building2, Globe } from "lucide-react";
 import {
   useCreateUser,
   useCreateTeam,
@@ -540,19 +540,34 @@ export function TeamOnboarding({
 
               {error && <p className="text-destructive text-sm font-bold text-center">{error}</p>}
 
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full"
-                onClick={handleInitiatePayment}
-                disabled={createPayment.isPending}
-              >
-                {createPayment.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("onboarding.payment.loading")}</>
-                ) : (
-                  t("onboarding.payment.button")
-                )}
-              </Button>
+              <p className="text-center text-sm text-muted-foreground font-medium">
+                {t("onboarding.payment.chooseHowToPay")}
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleInitiatePayment}
+                  disabled={createPayment.isPending}
+                >
+                  {createPayment.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {t("onboarding.payment.loading")}</>
+                  ) : (
+                    t("onboarding.payment.button")
+                  )}
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => console.log("TODO: wire international checkout")}
+                >
+                  <Globe className="w-5 h-5" /> {t("onboarding.payment.internationalOption")}
+                </Button>
+              </div>
 
               {import.meta.env.DEV && (
                 <button
