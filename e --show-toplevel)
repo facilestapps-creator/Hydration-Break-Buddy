@@ -1,0 +1,30 @@
+[33mcommit 4fba5759b8e5c57fd9e03314e6384c97b61dc95c[m
+Author: facilestapps-creator <facilest.apps@gmail.com>
+Date:   Mon Sep 7 20:47:09 2026 +0000
+
+    fix SetupConfig corruption + regenerate api client/zod for magic link
+
+ lib/api-client-react/src/generated/api.ts | 218 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ 1 file changed, 218 insertions(+)
+
+[33mcommit ed7cff060e5bd6bfaf5640f693ac175d4a3f6863[m
+Author: Replit Agent <agent@replit.com>
+Date:   Wed Jul 22 01:25:02 2026 +0000
+
+    Add team configuration endpoint and enhance team onboarding with internationalization support
+    
+    Replit-Commit-Author: Agent
+
+ lib/api-client-react/src/generated/api.ts | 78 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ 1 file changed, 78 insertions(+)
+
+[33mcommit 7f01dad30cb26f0331c5321657e56b538bb680e4[m
+Author: Replit Agent <agent@replit.com>
+Date:   Sun Jul 19 03:01:23 2026 +0000
+
+    Simplify payment and webhook routes while refactoring i18n configuration and updating API client schemas.
+    
+    Replit-Commit-Author: Agent
+
+ lib/api-client-react/src/generated/api.ts | 294 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m[31m--------------------------------[m
+ 1 file changed, 189 insertions(+), 105 deletions(-)
