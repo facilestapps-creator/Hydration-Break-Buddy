@@ -141,6 +141,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
             id: paymentsTable.id,
             plan: paymentsTable.plan,
             mpPreapprovalId: paymentsTable.mpPreapprovalId,
+            lsSubscriptionId: paymentsTable.lsSubscriptionId,
           });
 
         if (claimed.length === 0) {
@@ -161,6 +162,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
 
         const plan = (claimed[0].plan ?? "team") as "team" | "company";
         const mpPreapprovalId = claimed[0].mpPreapprovalId ?? null;
+        const lsSubscriptionId = claimed[0].lsSubscriptionId ?? null;
         const memberLimit = plan === "company" ? null : 10;
 
         const currentPeriodEnd = new Date();
@@ -176,6 +178,7 @@ router.post("/teams", requireAuth, async (req, res): Promise<void> => {
             subscriptionStatus: "active",
             currentPeriodEnd,
             mpPreapprovalId,
+            lsSubscriptionId,
             creatorUserId: userId,
           })
           .returning();
