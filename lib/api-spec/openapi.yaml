@@ -249,7 +249,27 @@ paths:
                 $ref: "#/components/schemas/PaymentCreateResponse"
         "400":
           description: Bad request
-
+    /payments/create-international:
+     post:
+      operationId: createInternationalPayment
+      tags: [payments]
+      summary: Create a Lemon Squeezy checkout for team creation (international)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentCreateInput"
+      responses:
+        "201":
+          description: Checkout created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentCreateInternationalResponse"
+        "400":
+          description: Bad request
+          
   /payments/{token}/status:
     get:
       operationId: getPaymentStatus
@@ -504,6 +524,15 @@ components:
           type: string
         amountArs:
           type: integer
+      
+    PaymentCreateInternationalResponse:
+      type: object
+      required: [paymentToken, checkoutUrl]
+      properties:
+        paymentToken:
+          type: string
+        checkoutUrl:
+          type: string
 
     PaymentStatusResponse:
       type: object
