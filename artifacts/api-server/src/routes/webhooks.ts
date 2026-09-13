@@ -267,7 +267,7 @@ router.post("/webhooks/lemonsqueezy", async (req, res): Promise<void> => {
       const subscriptionId = dataId;
       const status = typeof attrs.status === "string" ? attrs.status : undefined;
       const renewsAt = typeof attrs.renews_at === "string" ? attrs.renews_at : undefined;
-      const customData = body.meta?.custom_data as { teamId?: string | number } | undefined;
+      const customData = body.meta?.custom_data as { paymentToken?: string } | undefined;
 
       const newSubStatus =
         status === "active" || status === "on_trial" ? "active"
@@ -276,38 +276,36 @@ router.post("/webhooks/lemonsqueezy", async (req, res): Promise<void> => {
         : status === "cancelled" || status === "expired" ? "cancelled"
         : null;
 
-      // Find the team: prefer matching by lsSubscriptionId (already linked),
-      // fall back to custom_data.teamId — set at checkout creation, wired up
-      // in a later block (routing/checkout, not built yet).
-      let teamId: number | null = null;
-      const [existing] = await db
-        .select({ id: teamsTable.id })
+      // ── Case 1: team already exists and is linked to this subscription ──
+      // (true for every event after the first — renewals, cancellations, etc.)
+      const [existingTeam] = await db
+        .select({ id: teamsTable.id, pastDueSince: teamsTable.pastDueSince })
         .from(teamsTable)
         .where(eq(teamsTable.lsSubscriptionId, subscriptionId));
-      if (existing) {
-        teamId = existing.id;
-      } else if (customData?.teamId) {
-        teamId = Number(customData.teamId);
-      }
 
-      if (teamId && newSubStatus) {
-        const updateData: Record<string, unknown> = {
-          subscriptionStatus: newSubStatus,
-          lsSubscriptionId: subscriptionId,
-        };
+      if (existingTeam && newSubStatus) {
+        const updateData: Record<string, unknown> = { subscriptionStatus: newSubStatus };
         if (newSubStatus === "active") {
           updateData.currentPeriodEnd = renewsAt ? new Date(renewsAt) : null;
           updateData.pastDueSince = null;
         } else if (newSubStatus === "past_due" || newSubStatus === "paused") {
-          const [team] = await db
-            .select({ pastDueSince: teamsTable.pastDueSince })
-            .from(teamsTable)
-            .where(eq(teamsTable.id, teamId));
-          if (team && !team.pastDueSince) {
+          if (!existingTeam.pastDueSince) {
             updateData.pastDueSince = new Date();
           }
         }
-        await db.update(teamsTable).set(updateData).where(eq(teamsTable.id, teamId));
+        await db.update(teamsTable).set(updateData).where(eq(teamsTable.id, existingTeam.id));
+        return;
+      }
+
+      // ── Case 2: first event for this subscription — no team yet. ────────
+      // Mark the pending payment as approved and store the subscription ID
+      // on it. Team creation (POST /teams) will later claim this payment
+      // and copy lsSubscriptionId onto the new team, mirroring the MP flow.
+      if (customData?.paymentToken && newSubStatus === "active") {
+        await db
+          .update(paymentsTable)
+          .set({ status: "approved", lsSubscriptionId: subscriptionId, updatedAt: new Date() })
+          .where(eq(paymentsTable.paymentToken, customData.paymentToken));
       }
 
       return;
