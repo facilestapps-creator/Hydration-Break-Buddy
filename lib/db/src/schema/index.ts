@@ -55,6 +55,7 @@ export const paymentsTable = pgTable("payments", {
   mpPreferenceId: text("mp_preference_id"),                 // nullable — used only for one-time preference flow
   mpPaymentId: text("mp_payment_id"),                       // filled in by webhook (one-time payment)
   mpPreapprovalId: text("mp_preapproval_id"),               // subscription preapproval ID from MP
+  lsSubscriptionId: text("ls_subscription_id"),             // subscription ID from Lemon Squeezy
   provider: text("provider").notNull().default("mercadopago"),   // "mercadopago" | "lemonsqueezy"
   userId: integer("user_id").notNull().references(() => usersTable.id),
   status: text("status").notNull().default("pending"),      // pending | approved | rejected | cancelled
