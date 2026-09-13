@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "../middlewares/auth";
 import { strictLimiter } from "../lib/rate-limiters";
 import { IS_MP_PROD, getMpToken } from "../lib/mp-client";
+import { getLsApiKey, LS_STORE_ID, LS_VARIANT_ID } from "../lib/ls-client";
 
 const router: IRouter = Router();
 
@@ -210,6 +211,93 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
     status: payment.status,
     mpPaymentId: payment.mpPreapprovalId ?? null,
   });
+});
+
+// ── Create subscription — Lemon Squeezy (international) ───────────────────
+//
+// Unlike MP, Lemon Squeezy checkout is created via API call (not a hand-built
+// URL) and returns the checkout URL directly in the response. Our own
+// paymentToken travels as custom_data, and comes back to us in the webhook
+// under meta.custom_data.paymentToken — same role as MP's external_reference.
+//
+router.post("/payments/create-international", requireAuth, strictLimiter, async (req, res): Promise<void> => {
+  try {
+    const userId = req.userId;
+    const { plan } = req.body as { plan?: unknown };
+
+    if (plan !== "team" && plan !== "company") {
+      res.status(400).json({ error: "plan must be 'team' or 'company'" });
+      return;
+    }
+
+    const userRows = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (userRows.length === 0) {
+      res.status(400).json({ error: "User not found" });
+      return;
+    }
+
+    const variantId = LS_VARIANT_ID[plan];
+    if (!variantId || !LS_STORE_ID) {
+      res.status(500).json({ error: "International plan not configured on server" });
+      return;
+    }
+
+    const paymentToken = randomUUID();
+
+    const lsRes = await fetch("https://api.lemonsqueezy.com/v1/checkouts", {
+      method: "POST",
+      headers: {
+        "Accept": "application/vnd.api+json",
+        "Content-Type": "application/vnd.api+json",
+        "Authorization": `Bearer ${getLsApiKey()}`,
+      },
+      body: JSON.stringify({
+        data: {
+          type: "checkouts",
+          attributes: {
+            checkout_data: {
+              custom: { paymentToken },
+            },
+          },
+          relationships: {
+            store: { data: { type: "stores", id: LS_STORE_ID } },
+            variant: { data: { type: "variants", id: variantId } },
+          },
+        },
+      }),
+    });
+
+    if (!lsRes.ok) {
+      const errBody = await lsRes.text();
+      console.error("[payments/create-international] Lemon Squeezy API error:", lsRes.status, errBody);
+      res.status(500).json({ error: "Failed to create international checkout" });
+      return;
+    }
+
+    const lsData = await lsRes.json() as { data: { attributes: { url: string } } };
+    const checkoutUrl = lsData.data.attributes.url;
+
+    // ── Persist to DB ─────────────────────────────────────────────────────
+    await db.insert(paymentsTable).values({
+      paymentToken,
+      userId,
+      status: "pending",
+      plan,
+      provider: "lemonsqueezy",
+      amount: 0,
+      currency: "USD",
+    });
+
+    res.status(201).json({
+      paymentToken,
+      plan,
+      status: "pending",
+      checkoutUrl,
+    });
+  } catch (err) {
+    console.error("[payments/create-international] error:", err);
+    res.status(500).json({ error: "Failed to create payment" });
+  }
 });
 
 export default router;
