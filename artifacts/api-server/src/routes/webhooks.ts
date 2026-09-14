@@ -271,8 +271,7 @@ router.post("/webhooks/lemonsqueezy", async (req, res): Promise<void> => {
 
       const newSubStatus =
         status === "active" || status === "on_trial" ? "active"
-        : status === "paused" ? "paused"
-        : status === "past_due" || status === "unpaid" ? "past_due"
+        : status === "paused" || status === "past_due" || status === "unpaid" ? "paused"
         : status === "cancelled" || status === "expired" ? "cancelled"
         : null;
 
@@ -336,7 +335,7 @@ router.post("/webhooks/lemonsqueezy", async (req, res): Promise<void> => {
         if (!team.pastDueSince) {
           await db
             .update(teamsTable)
-            .set({ subscriptionStatus: "past_due", pastDueSince: new Date() })
+            .set({ subscriptionStatus: "paused", pastDueSince: new Date() })
             .where(eq(teamsTable.id, team.id));
         }
       }
