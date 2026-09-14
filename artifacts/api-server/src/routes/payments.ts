@@ -258,6 +258,9 @@ router.post("/payments/create-international", requireAuth, strictLimiter, async 
             checkout_data: {
               custom: { paymentToken },
             },
+            product_options: {
+              redirect_url: `https://breakbuddy.facilest.com/?bb_payment=success&token=${paymentToken}`,
+            },
           },
           relationships: {
             store: { data: { type: "stores", id: LS_STORE_ID } },
