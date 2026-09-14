@@ -131,7 +131,9 @@ router.get("/payments/:token/status", async (req, res): Promise<void> => {
 
   const payment = rows[0];
 
-  if (payment.status === "pending") {
+  // Only Mercado Pago needs this fallback poll — Lemon Squeezy's webhook is
+  // the only source of truth for that provider, there's nothing to fetch here.
+  if (payment.status === "pending" && payment.provider === "mercadopago") {
     try {
       let preapprovalStatus: string | null = null;
       let preapprovalId: string | null = payment.mpPreapprovalId ?? null;
