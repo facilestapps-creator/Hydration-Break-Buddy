@@ -30,6 +30,7 @@ import type {
   MagicLinkVerifyInput,
   OkResponse,
   PaymentCreateInput,
+  PaymentCreateInternationalResponse,
   PaymentCreateResponse,
   PaymentStatusResponse,
   Team,
@@ -886,6 +887,77 @@ export const useCreatePayment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreatePaymentMutationOptions(options));
+    }
+
+export const getCreateInternationalPaymentUrl = () => {
+
+
+
+
+  return `/api/payments/create-international`
+}
+
+/**
+ * @summary Create a Lemon Squeezy checkout for team creation (international)
+ */
+export const createInternationalPayment = async (paymentCreateInput: PaymentCreateInput, options?: RequestInit): Promise<PaymentCreateInternationalResponse> => {
+
+  return customFetch<PaymentCreateInternationalResponse>(getCreateInternationalPaymentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateInternationalPaymentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInternationalPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInternationalPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext> => {
+
+const mutationKey = ['createInternationalPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInternationalPayment>>, {data: BodyType<PaymentCreateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createInternationalPayment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateInternationalPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createInternationalPayment>>>
+    export type CreateInternationalPaymentMutationBody = BodyType<PaymentCreateInput>
+    export type CreateInternationalPaymentMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a Lemon Squeezy checkout for team creation (international)
+ */
+export const useCreateInternationalPayment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInternationalPayment>>, TError,{data: BodyType<PaymentCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createInternationalPayment>>,
+        TError,
+        {data: BodyType<PaymentCreateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateInternationalPaymentMutationOptions(options));
     }
 
 export const getGetPaymentStatusUrl = (token: string,

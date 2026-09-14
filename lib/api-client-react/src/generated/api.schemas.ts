@@ -94,6 +94,11 @@ export interface PaymentCreateResponse {
   amountArs: number;
 }
 
+export interface PaymentCreateInternationalResponse {
+  paymentToken: string;
+  checkoutUrl: string;
+}
+
 export interface PaymentStatusResponse {
   paymentToken: string;
   status: string;

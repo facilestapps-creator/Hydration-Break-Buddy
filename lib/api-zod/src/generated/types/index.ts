@@ -17,6 +17,7 @@ export * from './magicLinkRequestInput';
 export * from './magicLinkVerifyInput';
 export * from './okResponse';
 export * from './paymentCreateInput';
+export * from './paymentCreateInternationalResponse';
 export * from './paymentCreateResponse';
 export * from './paymentStatusResponse';
 export * from './team';

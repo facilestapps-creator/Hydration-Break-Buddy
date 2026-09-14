@@ -202,6 +202,19 @@ export const CreatePaymentResponse = zod.object({
 
 
 /**
+ * @summary Create a Lemon Squeezy checkout for team creation (international)
+ */
+export const CreateInternationalPaymentBody = zod.object({
+  "plan": zod.string()
+})
+
+export const CreateInternationalPaymentResponse = zod.object({
+  "paymentToken": zod.string(),
+  "checkoutUrl": zod.string()
+})
+
+
+/**
  * @summary Poll payment status by token
  */
 export const GetPaymentStatusParams = zod.object({
