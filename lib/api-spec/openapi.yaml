@@ -249,8 +249,8 @@ paths:
                 $ref: "#/components/schemas/PaymentCreateResponse"
         "400":
           description: Bad request
-    /payments/create-international:
-     post:
+  /payments/create-international:
+    post:
       operationId: createInternationalPayment
       tags: [payments]
       summary: Create a Lemon Squeezy checkout for team creation (international)
