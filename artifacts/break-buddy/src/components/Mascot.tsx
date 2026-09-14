@@ -32,7 +32,7 @@ export function Mascot({ state = "idle" }: { state?: "idle" | "break" | "celebra
         </div>
         {/* Mouth */}
         <motion.div
-          className="absolute bottom-10 w-4 h-3 bg-primary-foreground rounded-b-full rounded-t-sm z-10"
+          className="absolute bottom-[30px] w-4 h-3 bg-primary-foreground rounded-b-full rounded-t-sm z-10"
           animate={{
             height: state === "celebrate" ? 12 : state === "break" ? 4 : 8,
             width: state === "break" ? 12 : 16,
@@ -40,8 +40,8 @@ export function Mascot({ state = "idle" }: { state?: "idle" | "break" | "celebra
           }}
         />
         {/* Cheeks */}
-        <div className="absolute top-[4.5rem] left-[2.2rem] w-3 h-2 bg-red-500/30 rounded-full blur-[1px]" />
-        <div className="absolute top-[4.5rem] right-[2.2rem] w-3 h-2 bg-red-500/30 rounded-full blur-[1px]" />
+        <div className="absolute top-[54px] left-[26px] w-3 h-2 bg-red-500/30 rounded-full blur-[1px]" />
+        <div className="absolute top-[54px] right-[26px] w-3 h-2 bg-red-500/30 rounded-full blur-[1px]" />
       </motion.div>
     </div>
   );
