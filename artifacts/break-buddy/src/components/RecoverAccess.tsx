@@ -107,7 +107,9 @@ export function RecoverAccess() {
               <CircleCheck className="w-8 h-8 stroke-[3]" />
             </div>
             <h2 className="text-2xl font-black text-foreground">{t("recovery.title")}</h2>
-            <p className="text-muted-foreground font-medium">{t("recovery.success")}</p>
+            <p className="text-muted-foreground font-medium">
+              {t("recovery.successDetail", { email })}
+            </p>
           </motion.div>
         ) : (
           <>
