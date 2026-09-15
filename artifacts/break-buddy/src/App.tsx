@@ -9,6 +9,7 @@ import { TeamOnboarding } from "./components/TeamOnboarding";
 import { SetupConfig } from "./components/SetupConfig";
 import { FeedbackWidget } from "./components/FeedbackWidget";
 import { RecoverAccess } from "./components/RecoverAccess";
+import { HelpCenter } from "./HelpCenter";
 import { Toaster } from "./components/ui/toaster";
 import { useLocalStorage } from "./hooks/use-local-storage";
 
@@ -101,6 +102,9 @@ function Router() {
       </Route>
       <Route path="/recover">
         <RecoverAccess />
+      </Route>
+      <Route path="/help">
+        <HelpCenter />
       </Route>
       <Route>
         <div className="flex h-screen items-center justify-center bg-background text-foreground">
