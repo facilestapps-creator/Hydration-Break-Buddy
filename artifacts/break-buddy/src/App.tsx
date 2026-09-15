@@ -9,7 +9,7 @@ import { TeamOnboarding } from "./components/TeamOnboarding";
 import { SetupConfig } from "./components/SetupConfig";
 import { FeedbackWidget } from "./components/FeedbackWidget";
 import { RecoverAccess } from "./components/RecoverAccess";
-import { HelpCenter } from "./HelpCenter";
+import { HelpCenter } from "./components/HelpCenter";
 import { Toaster } from "./components/ui/toaster";
 import { useLocalStorage } from "./hooks/use-local-storage";
 
