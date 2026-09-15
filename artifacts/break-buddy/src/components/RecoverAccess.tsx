@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Mail, CircleCheck, Loader2, CircleX } from "lucide-react";
+import { Mail, CircleCheck, Loader2, CircleX, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useRequestMagicLink, useVerifyMagicLink } from "@workspace/api-client-react";
 import { Button } from "./Button";
@@ -74,6 +74,14 @@ export function RecoverAccess() {
         exit={{ opacity: 0, y: -20 }}
         className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border-2 border-border shadow-sm z-10"
       >
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-4 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t("onboarding.back")}
+        </button>
+
         {verifyState === "error" ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
