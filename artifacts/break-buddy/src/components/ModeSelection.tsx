@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import { Mascot } from "./Mascot";
 import { Users, User as UserIcon } from "lucide-react";
 
 export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") => void }) {
   const { t } = useTranslation();
+  const [, navigate] = useLocation();
 
   return (
     <motion.div
@@ -52,6 +54,14 @@ export function ModeSelection({ onSelect }: { onSelect: (mode: "solo" | "team") 
           </div>
         </motion.button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigate("/help")}
+        className="text-xs text-muted-foreground font-medium text-center mt-8 hover:text-primary transition-colors cursor-pointer z-10"
+      >
+        {t("help.menuLink")}
+      </button>
 
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-secondary/10 rounded-full blur-[100px] pointer-events-none" />
